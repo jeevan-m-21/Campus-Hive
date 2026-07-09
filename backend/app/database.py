@@ -24,5 +24,4 @@ def init_db(app):
     migrate.init_app(app, db)
 
     # Create tables if they don't exist
-    with app.app_context():
-        db.create_all()
+

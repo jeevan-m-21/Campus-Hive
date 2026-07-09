@@ -37,8 +37,8 @@ def make_shell_context():
     """Shell context for Flask CLI"""
     from app.database import db
     from app.models import (
-        User, Organization, Department, Supervisor, Student,
-        Complaint, LostFoundItem, Notification, Announcement
+        User, Organization, Department, Complaint,
+        LostFound, Notification, Announcement,
     )
     
     return {
@@ -46,12 +46,10 @@ def make_shell_context():
         'User': User,
         'Organization': Organization,
         'Department': Department,
-        'Supervisor': Supervisor,
-        'Student': Student,
         'Complaint': Complaint,
-        'LostFoundItem': LostFoundItem,
+        'LostFound': LostFound,
         'Notification': Notification,
-        'Announcement': Announcement
+        'Announcement': Announcement,
     }
 
 

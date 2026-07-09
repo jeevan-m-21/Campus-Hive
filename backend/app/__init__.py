@@ -12,7 +12,6 @@ from flask_socketio import SocketIO
 
 from config import get_config
 from app.database import init_db
-from app.middleware.auth import JWTManager
 from app.utils.logger import setup_logger
 
 
@@ -41,7 +40,7 @@ def create_app(config_name=None):
     # Initialize extensions
     CORS(app, origins=config.CORS_ORIGINS)
     init_db(app)
-    JWTManager(app)
+    
     
     # Initialize SocketIO
     socketio = SocketIO(
@@ -62,7 +61,7 @@ def create_app(config_name=None):
     register_socketio_events(app, socketio)
     
     # Initialize schedulers
-    init_schedulers(app)
+    #init_schedulers(app)
     
     app.logger.info('Flask application created and configured successfully')
     

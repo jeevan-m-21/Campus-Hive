@@ -1,154 +1,110 @@
-"""
-Authentication routes
-Login, registration, token refresh, and password management
-"""
+"""Authentication routes for Firebase-backed auth."""
 
-from flask import Blueprint, request, current_app
-from datetime import datetime
+from flask import Blueprint, g, request
 
-from app.database import db
-from app.models import User, Organization, UserSession
-from app.middleware.auth import generate_tokens, require_organization
-from app.utils.validators import UserRegisterSchema, UserLoginSchema, validate_schema
-from app.utils.helpers import success_response, error_response, hash_password, verify_password, generate_uuid
+from app.middleware.firebase_auth import firebase_login_required
+from app.services.auth_service import (
+    AuthService,
+    AuthServiceError,
+)
+from app.utils.helpers import error_response, success_response
+
 
 auth_bp = Blueprint('auth', __name__)
 
 
+def _extract_id_token(payload):
+    """Accept a few token key names for compatibility."""
+
+    return payload.get('id_token') or payload.get('firebase_id_token') or payload.get('token')
+
+
+def _handle_auth_error(error: AuthServiceError):
+    """Translate auth service exceptions into API responses."""
+
+    return error_response(error.error_code, error.message, error.status_code)
+
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    """
-    Register new user
-    POST /api/v1/auth/register
-    """
-    data = request.get_json()
-    
-    # Validate input
-    schema = UserRegisterSchema()
-    validated_data, errors = validate_schema(schema, data)
-    if errors:
-        return error_response(errors, 'Validation failed', 400)
-    
-    # Check if email already exists in organization
-    org_id = validated_data['organization_id']
-    email = validated_data['email']
-    
-    existing_user = User.query.filter_by(
-        organization_id=org_id,
-        email=email
-    ).first()
-    
-    if existing_user:
-        return error_response('email_exists', 'Email already registered in this organization', 400)
-    
-    # Verify organization exists
-    org = Organization.query.get(org_id)
-    if not org:
-        return error_response('org_not_found', 'Organization not found', 404)
-    
-    # Create new user
-    user = User(
-        id=generate_uuid(),
-        organization_id=org_id,
-        email=email,
-        password_hash=hash_password(validated_data['password']),
-        first_name=validated_data.get('first_name'),
-        last_name=validated_data.get('last_name'),
-        phone=validated_data.get('phone'),
-        role=validated_data.get('role', 'student'),
-        is_verified=True
-    )
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    current_app.logger.info(f'User registered: {email}')
-    
-    return success_response(
-        {'user_id': user.id, 'email': user.email},
-        'User registered successfully',
-        201
-    )
+    """Register or sync a Firebase-authenticated user."""
+
+    payload = request.get_json(silent=True) or {}
+    id_token = _extract_id_token(payload)
+
+    if not id_token:
+        return error_response('missing_token', 'Firebase ID token is required.', 401)
+
+    try:
+        result = AuthService.register_user(
+            id_token,
+            organization_id=payload.get('organization_id'),
+            department_id=payload.get('department_id'),
+            role=payload.get('role'),
+            full_name=payload.get('full_name'),
+            usn_or_employee_id=payload.get('usn_or_employee_id'),
+            phone=payload.get('phone'),
+            profile_image=payload.get('profile_image'),
+            fcm_token=payload.get('fcm_token'),
+        )
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'User registered successfully.', 201)
 
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """
-    Login user and return JWT tokens
-    POST /api/v1/auth/login
-    """
-    data = request.get_json()
-    
-    # Validate input
-    schema = UserLoginSchema()
-    validated_data, errors = validate_schema(schema, data)
-    if errors:
-        return error_response(errors, 'Validation failed', 400)
-    
-    email = validated_data['email']
-    password = validated_data['password']
-    
-    # Find user by email (search across organizations for super admin)
-    user = User.query.filter_by(email=email).first()
-    
-    if not user or not verify_password(password, user.password_hash):
-        return error_response('invalid_credentials', 'Invalid email or password', 401)
-    
-    if not user.is_active:
-        return error_response('user_inactive', 'User account is inactive', 403)
-    
-    # Update last login and FCM token
-    user.last_login_at = datetime.utcnow()
-    if validated_data.get('fcm_token'):
-        user.fcm_token = validated_data['fcm_token']
-        user.fcm_token_updated_at = datetime.utcnow()
-    if validated_data.get('device_id'):
-        user.device_id = validated_data['device_id']
-    
-    db.session.commit()
-    
-    # Generate tokens
-    tokens = generate_tokens(user)
-    
-    current_app.logger.info(f'User logged in: {email}')
-    
-    return success_response({
-        'tokens': tokens,
-        'user': {
-            'id': user.id,
-            'email': user.email,
-            'full_name': user.full_name,
-            'role': user.role,
-            'organization_id': user.organization_id
-        }
-    }, 'Login successful', 200)
+    """Authenticate a Firebase user and sync the login state."""
+
+    payload = request.get_json(silent=True) or {}
+    id_token = _extract_id_token(payload)
+
+    if not id_token:
+        return error_response('missing_token', 'Firebase ID token is required.', 401)
+
+    try:
+        result = AuthService.login_user(
+            id_token,
+            fcm_token=payload.get('fcm_token'),
+        )
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Login successful.', 200)
 
 
-@auth_bp.route('/refresh', methods=['POST'])
-def refresh_token():
-    """
-    Refresh access token
-    POST /api/v1/auth/refresh
-    """
-    # TODO: Implement token refresh
-    return success_response({}, 'Token refreshed', 200)
+@auth_bp.route('/me', methods=['GET'])
+@firebase_login_required
+def me():
+    """Return the authenticated user."""
+
+    return success_response(
+        {
+            'user': g.current_user.to_dict(),
+        },
+        'Current user fetched successfully.',
+        200,
+    )
 
 
-@auth_bp.route('/logout', methods=['POST'])
-def logout():
-    """
-    Logout user
-    POST /api/v1/auth/logout
-    """
-    # TODO: Implement logout
-    return success_response({}, 'Logout successful', 200)
+@auth_bp.route('/update-fcm-token', methods=['POST'])
+@firebase_login_required
+def update_fcm_token():
+    """Update the current user's FCM token."""
 
+    payload = request.get_json(silent=True) or {}
+    fcm_token = payload.get('fcm_token')
 
-@auth_bp.route('/verify', methods=['GET'])
-def verify():
-    """
-    Verify token validity
-    GET /api/v1/auth/verify
-    """
-    # TODO: Implement token verification
-    return success_response({}, 'Token valid', 200)
+    if not fcm_token:
+        return error_response('validation_error', 'fcm_token is required.', 400)
+
+    try:
+        result = AuthService.update_fcm_token(
+            fcm_token=fcm_token,
+            user_id=g.current_user.user_id,
+        )
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'FCM token updated successfully.', 200)
