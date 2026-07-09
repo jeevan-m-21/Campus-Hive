@@ -15,6 +15,14 @@ class User(BaseModel, CreatedAtMixin):
 		db.ForeignKey('organizations.organization_id'),
 		nullable=False,
 	)
+	academic_department_id = db.Column(
+		db.Integer,
+		db.ForeignKey(
+			'academic_departments.academic_department_id',
+			ondelete='SET NULL'
+		),
+		nullable=True
+	)
 	department_id = db.Column(
 		db.Integer,
 		db.ForeignKey('departments.department_id'),
@@ -33,6 +41,11 @@ class User(BaseModel, CreatedAtMixin):
 	fcm_token = db.Column(db.Text)
 	last_login = db.Column(db.TIMESTAMP)
 
+	academic_department = db.relationship(
+		'AcademicDepartment',
+		back_populates='users',
+		lazy=True
+	)
 	complaints_as_student = db.relationship(
 		'Complaint',
 		foreign_keys='Complaint.student_id',

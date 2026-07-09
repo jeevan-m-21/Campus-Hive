@@ -2,6 +2,7 @@
 
 from app.models.base import BaseModel, CreatedAtMixin, TimestampMixin
 from app.models.organization import Organization
+from app.models.academic_department import AcademicDepartment
 from app.models.department import Department
 from app.models.user import User
 from app.models.complaint import Complaint
@@ -21,6 +22,7 @@ __all__ = [
     'TimestampMixin',
     'Organization',
     'Department',
+    'AcademicDepartment',
     'User',
     'Complaint',
     'ComplaintImage',
