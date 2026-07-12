@@ -16,7 +16,7 @@ from firebase_admin import credentials
 from flask import current_app
 
 from app.database import db
-from app.models import User, Organization, Department
+from app.models import User, Organization, Department, AcademicDepartment
 
 
 class AuthServiceError(Exception):
@@ -164,6 +164,12 @@ class AuthService:
             'user_id': user.user_id,
             'organization_id': user.organization_id,
             'department_id': user.department_id,
+            'academic_department_id': user.academic_department_id,
+            'academic_department_name': (
+                user.academic_department.department_name
+                if user.academic_department
+                else None
+            ),
             'full_name': user.full_name,
             'usn_or_employee_id': user.usn_or_employee_id,
             'email': user.email,
@@ -209,6 +215,7 @@ class AuthService:
         id_token: str,
         *,
         organization_id: Optional[int] = None,
+        academic_department_id: Optional[int] = None,
         department_id: Optional[int] = None,
         role: Optional[str] = None,
         full_name: Optional[str] = None,
@@ -228,6 +235,16 @@ class AuthService:
             raise ValidationError("Firebase token does not contain an email address.")
 
         resolved_organization_id = AuthService._resolve_organization_id(organization_id, claims)
+        try:
+            resolved_academic_department_id = (
+                int(academic_department_id)
+                if academic_department_id not in (None, "")
+                else None
+            )
+        except (TypeError, ValueError):
+            raise ValidationError(
+                "academic_department_id must be an integer."
+            )
         resolved_department_id = AuthService._resolve_department_id(department_id, claims)
         resolved_role = AuthService._normalize_role(role or AuthService._extract_claim_value(claims, 'role', 'user_role'))
         
@@ -237,6 +254,16 @@ class AuthService:
         if organization is None:
             raise ValidationError("Organization not found.")
         
+        if resolved_academic_department_id is not None:
+            academic_department = AcademicDepartment.query.filter_by(
+                academic_department_id=resolved_academic_department_id,
+                organization_id=resolved_organization_id,
+            ).first()
+
+            if academic_department is None:
+                raise ValidationError(
+                    "Academic department not found for this organization."
+                )
         # Verify email belongs to organization
         email_domain = email.split("@")[-1].lower()
 
@@ -274,6 +301,7 @@ class AuthService:
 
             user = User(
                 organization_id=resolved_organization_id,
+                academic_department_id=resolved_academic_department_id,
                 department_id=resolved_department_id,
                 full_name=resolved_full_name,
                 usn_or_employee_id=resolved_usn_or_employee_id,
@@ -287,6 +315,7 @@ class AuthService:
             db.session.add(user)
         else:
             user.organization_id = resolved_organization_id
+            user.academic_department_id = resolved_academic_department_id
             user.department_id = resolved_department_id
             user.full_name = resolved_full_name
             user.usn_or_employee_id = resolved_usn_or_employee_id

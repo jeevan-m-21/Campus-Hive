@@ -6,7 +6,7 @@ from flask import Blueprint, g, request
 
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
-from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintStatusHistory, Department
+from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintStatusHistory, Department, User
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
 
@@ -84,24 +84,33 @@ def create_complaint():
     if not description:
         return error_response('validation_error', 'description is required', 400)
 
-    complaint = Complaint(
-        organization_id=g.current_user.organization_id,
-        student_id=g.current_user.user_id,
-        department_id=department_id,
-        title=title,
-        description=description,
-        location=location,
-        ml_priority=_normalize_value(payload.get('ml_priority')),
-        final_priority=_normalize_value(payload.get('final_priority')),
-        status='PENDING',
-    )
-
     department = Department.query.filter_by(
         department_id=department_id,
         organization_id=g.current_user.organization_id,
     ).first()
     if department is None:
         return error_response('not_found', 'Department not found for this organization', 404)
+    
+    # Find the active supervisor for this department
+    supervisor = User.query.filter_by(
+        organization_id=g.current_user.organization_id,
+        department_id=department.department_id,
+        role='SUPERVISOR',
+        is_active=True,
+    ).first()
+
+    complaint = Complaint(
+        organization_id=g.current_user.organization_id,
+        student_id=g.current_user.user_id,
+        department_id=department_id,
+        supervisor_id=supervisor.user_id if supervisor else None,
+        title=title,
+        description=description,
+        location=location,
+        ml_priority=None,
+        final_priority=None,
+        status='PENDING',
+    )
 
     if complaint.ml_priority is not None and complaint.ml_priority not in _PRIORITY_VALUES:
         return error_response('validation_error', 'Invalid ml_priority value', 400)
@@ -180,6 +189,26 @@ def get_complaint(complaint_id):
         return error_response('forbidden', 'You cannot access this complaint', 403)
 
     return success_response(_serialize_complaint(complaint), 'Complaint retrieved', 200)
+
+
+@complaint_bp.route('/<int:complaint_id>/comments', methods=['GET'])
+@firebase_login_required
+@role_required()
+def get_complaint_comments(complaint_id):
+    """Get all comments for a complaint."""
+
+    complaint, error = _get_complaint_or_404(complaint_id)
+    if error:
+        return error
+
+    if g.current_user.role.upper() == 'SUPERVISOR' and complaint.supervisor_id not in (None, g.current_user.user_id):
+        return error_response('forbidden', 'You cannot access this complaint', 403)
+
+    comments = ComplaintChat.query.filter_by(
+        complaint_id=complaint.complaint_id,
+    ).order_by(ComplaintChat.sent_at.asc()).all()
+
+    return success_response([chat.to_dict() for chat in comments], 'Comments retrieved', 200)
 
 
 @complaint_bp.route('/<int:complaint_id>', methods=['PATCH'])
@@ -299,6 +328,24 @@ def add_comment(complaint_id):
     complaint, error = _get_complaint_or_404(complaint_id)
     if error:
         return error
+    
+    # Other students can comment only once.
+    # Complaint owner and staff can comment multiple times.
+    if (
+        g.current_user.role.upper() == "STUDENT"
+        and complaint.student_id != g.current_user.user_id
+    ):
+        existing_comment = ComplaintChat.query.filter_by(
+            complaint_id=complaint.complaint_id,
+            sender_id=g.current_user.user_id,
+        ).first()
+
+        if existing_comment:
+            return error_response(
+                "validation_error",
+                "You can comment only once on this complaint.",
+                400,
+            )
 
     chat_message = ComplaintChat(
         complaint_id=complaint.complaint_id,
@@ -317,7 +364,7 @@ def add_comment(complaint_id):
     return success_response(chat_message.to_dict(), 'Comment added', 201)
 
 
-@complaint_bp.route('/<int:complaint_id>/vote', methods=['POST'])
+@complaint_bp.route('/<int:complaint_id>/support', methods=['POST'])
 @firebase_login_required
 @role_required()
 def support_complaint(complaint_id):
@@ -329,26 +376,31 @@ def support_complaint(complaint_id):
     complaint, error = _get_complaint_or_404(complaint_id)
     if error:
         return error
-
+    # Prevent students from supporting their own complaint
+    if complaint.student_id == g.current_user.user_id:
+        return error_response(
+            "validation_error",
+            "You cannot support your own complaint",
+            400
+        )
     existing_support = ComplaintSupport.query.filter_by(
         complaint_id=complaint.complaint_id,
         student_id=g.current_user.user_id,
     ).first()
 
-    if existing_support is None:
-        support = ComplaintSupport(
-            complaint_id=complaint.complaint_id,
-            student_id=g.current_user.user_id,
+    if existing_support:
+        return error_response(
+            "validation_error",
+            "You have already supported this complaint",
+            400
         )
-        db.session.add(support)
 
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-    else:
-        support = existing_support
+    support = ComplaintSupport(
+        complaint_id=complaint.complaint_id,
+        student_id=g.current_user.user_id,
+    )
+
+    db.session.add(support)
 
     _recalculate_support_count(complaint)
     try:

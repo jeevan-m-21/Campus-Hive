@@ -22,7 +22,11 @@ class Department(BaseModel, CreatedAtMixin):
     priority_low_hours = db.Column(db.Integer, server_default=db.text('168'))
 
     users = db.relationship('User', backref='department', lazy=True)
-    complaints = db.relationship('Complaint', backref='department', lazy=True)
+    complaints = db.relationship(
+        'Complaint',
+        back_populates='department',
+        lazy=True
+    )
 
     def __repr__(self):
         return f'<Department {self.department_name}>'

@@ -36,12 +36,12 @@ class ComplaintChat(BaseModel):
 
     def to_dict(self):
         return {
-            "chat_id": self.chat_id,
+            "message_id": self.message_id,
             "complaint_id": self.complaint_id,
             "sender_id": self.sender_id,
             "message": self.message,
             "image_url": self.image_url,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
         }
     def __repr__(self):
         return f'<ComplaintChat {self.message_id}>'

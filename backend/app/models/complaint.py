@@ -54,7 +54,20 @@ class Complaint(BaseModel, TimestampMixin):
     supports = db.relationship('ComplaintSupport', backref='complaint', lazy=True, cascade='all, delete-orphan')
     chat_messages = db.relationship('ComplaintChat', backref='complaint', lazy=True, cascade='all, delete-orphan')
     status_history = db.relationship('ComplaintStatusHistory', backref='complaint', lazy=True, cascade='all, delete-orphan')
-
+    student = db.relationship(
+        "User",
+        foreign_keys=[student_id],
+        backref="complaints_created"
+    )
+    supervisor = db.relationship(
+        "User",
+        foreign_keys=[supervisor_id],
+        backref="assigned_complaints"
+    )
+    department = db.relationship(
+        "Department",
+        back_populates="complaints"
+    )
     def to_dict(self):
         return {
             "complaint_id": self.complaint_id,
@@ -74,6 +87,8 @@ class Complaint(BaseModel, TimestampMixin):
             "student_feedback": self.student_feedback,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "student_name": self.student.full_name if self.student else None,
+            "department_name": self.department.department_name if self.department else None,
         }
 
     def __repr__(self):

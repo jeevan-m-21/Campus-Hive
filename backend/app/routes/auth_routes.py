@@ -14,10 +14,18 @@ auth_bp = Blueprint('auth', __name__)
 
 
 def _extract_id_token(payload):
-    """Accept a few token key names for compatibility."""
+    """Extract Firebase ID token from Authorization header or request body."""
 
-    return payload.get('id_token') or payload.get('firebase_id_token') or payload.get('token')
+    auth_header = request.headers.get("Authorization")
 
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split(" ", 1)[1]
+
+    return (
+        payload.get("id_token")
+        or payload.get("firebase_id_token")
+        or payload.get("token")
+    )
 
 def _handle_auth_error(error: AuthServiceError):
     """Translate auth service exceptions into API responses."""
@@ -39,6 +47,7 @@ def register():
         result = AuthService.register_user(
             id_token,
             organization_id=payload.get('organization_id'),
+            academic_department_id=payload.get('academic_department_id'),
             department_id=payload.get('department_id'),
             role=payload.get('role'),
             full_name=payload.get('full_name'),
