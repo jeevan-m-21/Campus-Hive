@@ -26,20 +26,42 @@ class LostFound(BaseModel, TimestampMixin):
     category = db.Column(db.String(100))
     location = db.Column(db.String(255))
     date_of_incident = db.Column(db.Date)
+    resolved_at = db.Column(db.DateTime)
     status = db.Column(
-        db.Enum('OPEN', 'CLAIM_REQUESTED', 'CLAIMED', 'CLOSED'),
+        db.Enum('OPEN', 'CLOSED'),
         server_default=db.text("'OPEN'"),
     )
-    claimed_by = db.Column(db.Integer, db.ForeignKey('users.user_id'))
 
     __table_args__ = (
         db.Index('organization_id', 'organization_id'),
         db.Index('posted_by', 'posted_by'),
-        db.Index('claimed_by', 'claimed_by'),
     )
 
     images = db.relationship('LostFoundImage', backref='item', lazy=True, cascade='all, delete-orphan')
     chat_messages = db.relationship('LostFoundChat', backref='item', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            "item_id": self.item_id,
+            "organization_id": self.organization_id,
+            "posted_by": self.posted_by,
+            "poster_name": self.posted_by_user.full_name if self.posted_by_user else None,
+            "item_type": str(self.item_type),
+            "title": self.title,
+            "description": self.description,
+            "category": self.category,
+            "location": self.location,
+            "date_of_incident": self.date_of_incident.isoformat() if self.date_of_incident else None,
+            "status": str(self.status),
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "image_count": len(self.images) if self.images else 0,
+            "images": [
+                image.to_dict()
+                for image in self.images
+            ]
+        }
 
     def __repr__(self):
         return f'<LostFound {self.item_id}>'

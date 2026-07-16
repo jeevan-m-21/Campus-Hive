@@ -62,7 +62,6 @@ class User(BaseModel, CreatedAtMixin):
 	complaint_chat_messages = db.relationship('ComplaintChat', backref='sender_user', lazy=True)
 	complaint_status_updates = db.relationship('ComplaintStatusHistory', backref='updated_by_user', lazy=True)
 	lost_found_posts = db.relationship('LostFound', foreign_keys='LostFound.posted_by', backref='posted_by_user', lazy=True)
-	lost_found_claims = db.relationship('LostFound', foreign_keys='LostFound.claimed_by', backref='claimed_by_user', lazy=True)
 	lost_found_chat_messages = db.relationship('LostFoundChat', backref='sender_user', lazy=True)
 	announcements_created = db.relationship('Announcement', backref='created_by_user', lazy=True)
 	notifications = db.relationship('Notification', backref='user', lazy=True)

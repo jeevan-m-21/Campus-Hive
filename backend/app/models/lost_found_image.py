@@ -26,5 +26,13 @@ class LostFoundImage(BaseModel):
         db.Index('item_id', 'item_id'),
     )
 
+    def to_dict(self):
+        return {
+            "image_id": self.image_id,
+            "item_id": self.item_id,
+            "image_url": self.image_url,
+            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
+        }
+
     def __repr__(self):
         return f'<LostFoundImage {self.image_id}>'

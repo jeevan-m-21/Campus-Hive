@@ -26,7 +26,6 @@ class LostFoundChat(BaseModel):
         server_default=db.text("'TEXT'"),
     )
     image_url = db.Column(db.String(500))
-    is_read = db.Column(db.Boolean, server_default=db.text('0'))
     sent_at = db.Column(
         db.TIMESTAMP,
         server_default=db.text('CURRENT_TIMESTAMP'),
@@ -37,6 +36,18 @@ class LostFoundChat(BaseModel):
         db.Index('item_id', 'item_id'),
         db.Index('sender_id', 'sender_id'),
     )
+
+    def to_dict(self):
+        return {
+            "message_id": self.message_id,
+            "item_id": self.item_id,
+            "sender_id": self.sender_id,
+            "sender_name": self.sender_user.full_name if self.sender_user else None,
+            "message": self.message,
+            "message_type": str(self.message_type),
+            "image_url": self.image_url,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+        }
 
     def __repr__(self):
         return f'<LostFoundChat {self.message_id}>'
