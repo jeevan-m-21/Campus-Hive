@@ -7,6 +7,7 @@ from flask import Blueprint, g, request
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintStatusHistory, Department, User
+from app.services.notification_service import NotificationService, NotificationServiceError
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
 
@@ -120,7 +121,29 @@ def create_complaint():
     db.session.add(complaint)
 
     try:
+        db.session.flush()
+
+        NotificationService.create_notification(
+            complaint.student_id,
+            'Complaint Submitted',
+            'Your complaint has been submitted successfully.',
+            'COMPLAINT',
+            complaint.complaint_id,
+        )
+
+        if supervisor is not None:
+            NotificationService.create_notification(
+                supervisor.user_id,
+                'New Complaint Assigned',
+                f'A new complaint "{complaint.title}" has been assigned to you.',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+
         db.session.commit()
+    except NotificationServiceError as exc:
+        db.session.rollback()
+        return error_response(exc.error_code, exc.message, exc.status_code)
     except Exception:
         db.session.rollback()
         raise
@@ -226,6 +249,7 @@ def update_complaint(complaint_id):
         return error
 
     old_status = complaint.status
+    old_supervisor_id = complaint.supervisor_id
 
     if 'status' in payload:
         normalized_status = _normalize_value(payload.get('status'))
@@ -276,6 +300,27 @@ def update_complaint(complaint_id):
             return error_response('validation_error', 'description cannot be empty', 400)
         complaint.description = description
 
+    if 'supervisor_id' in payload:
+        supervisor_id = payload.get('supervisor_id')
+        if supervisor_id in (None, ''):
+            complaint.supervisor_id = None
+        else:
+            try:
+                supervisor_id = int(supervisor_id)
+            except (TypeError, ValueError):
+                return error_response('validation_error', 'supervisor_id must be an integer', 400)
+
+            supervisor = User.query.filter_by(
+                user_id=supervisor_id,
+                organization_id=g.current_user.organization_id,
+                role='SUPERVISOR',
+                is_active=True,
+            ).first()
+            if supervisor is None:
+                return error_response('not_found', 'Supervisor not found for this organization', 404)
+
+            complaint.supervisor_id = supervisor_id
+
     if 'location' in payload:
         complaint.location = payload.get('location')
 
@@ -293,7 +338,10 @@ def update_complaint(complaint_id):
             return error_response('not_found', 'Department not found for this organization', 404)
         complaint.department_id = department_id
 
-    if complaint.status != old_status:
+    should_notify_assigned = complaint.supervisor_id != old_supervisor_id and complaint.supervisor_id is not None
+    status_changed = complaint.status != old_status
+
+    if status_changed:
         status_history = ComplaintStatusHistory(
             complaint_id=complaint.complaint_id,
             updated_by=g.current_user.user_id,
@@ -304,7 +352,34 @@ def update_complaint(complaint_id):
         db.session.add(status_history)
 
     try:
+        if should_notify_assigned:
+            NotificationService.create_notification(
+                complaint.student_id,
+                'Complaint Assigned',
+                'Your complaint has been assigned to a supervisor.',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+
+        if status_changed:
+            notification_title = 'Complaint Resolved' if complaint.status == 'RESOLVED' else 'Complaint Status Updated'
+            notification_message = (
+                'Your complaint has been resolved.'
+                if complaint.status == 'RESOLVED'
+                else 'Your complaint status has been updated.'
+            )
+            NotificationService.create_notification(
+                complaint.student_id,
+                notification_title,
+                notification_message,
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+
         db.session.commit()
+    except NotificationServiceError as exc:
+        db.session.rollback()
+        return error_response(exc.error_code, exc.message, exc.status_code)
     except Exception:
         db.session.rollback()
         raise
@@ -356,7 +431,19 @@ def add_comment(complaint_id):
     db.session.add(chat_message)
 
     try:
+        if g.current_user.role.upper() == 'SUPERVISOR' and complaint.student_id != g.current_user.user_id:
+            NotificationService.create_notification(
+                complaint.student_id,
+                'New Supervisor Update',
+                'A supervisor added a new update to your complaint.',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+
         db.session.commit()
+    except NotificationServiceError as exc:
+        db.session.rollback()
+        return error_response(exc.error_code, exc.message, exc.status_code)
     except Exception:
         db.session.rollback()
         raise

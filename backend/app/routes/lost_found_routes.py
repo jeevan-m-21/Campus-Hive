@@ -8,6 +8,7 @@ from sqlalchemy import or_
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import LostFound, LostFoundChat, LostFoundImage
+from app.services.notification_service import NotificationService, NotificationServiceError
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
 
@@ -207,6 +208,8 @@ def update_lost_found(item_id):
 
     payload = _get_request_data()
 
+    old_status = item.status
+
     if 'title' in payload:
         title = (payload.get('title') or '').strip()
         if not title:
@@ -242,7 +245,23 @@ def update_lost_found(item_id):
             item.status = normalized_status
 
     try:
+        if (
+            old_status != 'CLOSED'
+            and item.status == 'CLOSED'
+            and item.posted_by != g.current_user.user_id
+        ):
+            NotificationService.create_notification(
+                item.posted_by,
+                'Item Closed',
+                'Your lost and found item has been closed.',
+                'LOST_FOUND',
+                item.item_id,
+            )
+
         db.session.commit()
+    except NotificationServiceError as exc:
+        db.session.rollback()
+        return error_response(exc.error_code, exc.message, exc.status_code)
     except Exception:
         db.session.rollback()
         raise
@@ -333,7 +352,18 @@ def add_lost_found_comment(item_id):
     db.session.add(comment)
 
     try:
+        if item.posted_by != g.current_user.user_id:
+            NotificationService.create_notification(
+                item.posted_by,
+                'New Comment',
+                'A new comment was added to your lost and found item.',
+                'LOST_FOUND',
+                item.item_id,
+            )
         db.session.commit()
+    except NotificationServiceError as exc:
+        db.session.rollback()
+        return error_response(exc.error_code, exc.message, exc.status_code)
     except Exception:
         db.session.rollback()
         raise
