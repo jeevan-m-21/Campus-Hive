@@ -177,6 +177,22 @@ def init_schedulers(app):
         name='Calculate daily statistics',
         replace_existing=True
     )
+
+    if app.config.get('ML_RETRAINING_ENABLED', False):
+        from app.services.retraining_service import RetrainingService
+
+        def run_retraining_check():
+            with app.app_context():
+                RetrainingService.check_and_retrain()
+
+        scheduler.add_job(
+            func=run_retraining_check,
+            trigger='interval',
+            hours=app.config.get('ML_RETRAINING_INTERVAL_HOURS', 1),
+            id='ml_priority_retraining',
+            name='Retrain complaint priority model',
+            replace_existing=True,
+        )
     
     scheduler.start()
     app.logger.info('Background schedulers initialized')

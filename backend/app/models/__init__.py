@@ -15,6 +15,8 @@ from app.models.lost_found_image import LostFoundImage
 from app.models.lost_found_chat import LostFoundChat
 from app.models.announcement import Announcement
 from app.models.notification import Notification
+from app.models.ml_retraining_batch import MlRetrainingBatch
+from app.models.ml_retraining_item import MlRetrainingItem
 
 __all__ = [
     'BaseModel',
@@ -34,4 +36,6 @@ __all__ = [
     'LostFoundChat',
     'Announcement',
     'Notification',
+    'MlRetrainingBatch',
+    'MlRetrainingItem',
 ]
