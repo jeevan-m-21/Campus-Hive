@@ -1,0 +1,504 @@
+Complaint Category,Location of Issue,Complaint Description,Priority Level,source
+WiFi / Internet Problem,Library,Wi-Fi in the Library frequently disconnects and makes it difficult to attend online classes.,Medium,SYNTHETIC
+Hostel Issue,Hostel Dining Area,A few hostel room fixtures in the Hostel Dining Area need routine maintenance.,Low,SYNTHETIC
+Electrical Issue,Classroom Block,"A burning smell is coming from an electrical panel in the Classroom Block, creating a serious safety concern.",High,SYNTHETIC
+WiFi / Internet Problem,Hostel,There is a major network outage in the Hostel and students cannot access required online resources.,High,SYNTHETIC
+Water Leakage,Canteen,A minor tap leak has been noticed in the Canteen.,Low,SYNTHETIC
+Security / Safety Issue,Lab Block,A security camera near the Lab Block is not functioning properly.,Medium,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The projector in the Classroom Block is not working reliably during classes.,Medium,SYNTHETIC
+Washroom Issue,Washroom,One flush in the Washroom is faulty but the facility is otherwise usable.,Low,SYNTHETIC
+Water Leakage,Lab Block,Heavy water leakage in the Lab Block is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Parking / Transport Issue,Main Gate,A dangerous traffic situation has developed near the Main Gate and immediate control is required.,High,SYNTHETIC
+Hostel Issue,Hostel,.....,High,REAL
+WiFi / Internet Problem,Library,The internet connection in the Library is unreliable and students have to reconnect several times.,Medium,SYNTHETIC
+WiFi / Internet Problem,Library,Wi-Fi coverage in the Library is poor across part of the area and affects regular academic work.,Medium,SYNTHETIC
+Cleanliness Issue,Other,The Other would benefit from more frequent cleaning during the day.,Low,SYNTHETIC
+Electrical Issue,Seminar Hall,Multiple lights and fans in the Seminar Hall have stopped working.,Medium,SYNTHETIC
+Hostel Issue,Hostel Dining Area,Several room facilities in the Hostel Dining Area are not working properly and need repair.,Medium,SYNTHETIC
+Electrical Issue,Hostel,An exposed electrical wire in the Hostel is accessible to students and presents an immediate safety risk.,High,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,,Medium,REAL
+Electrical Issue,Hostel,There are sparks coming from an electrical socket in the Hostel and the area should be checked immediately.,High,SYNTHETIC
+Library Issue,Reading Room,Some books in the Reading Room are not arranged correctly and are difficult to locate.,Low,SYNTHETIC
+WiFi / Internet Problem,Lab Block,Internet speed in the Lab Block drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Washroom Issue,Washroom,Water supply in the Washroom is inconsistent and affects normal use.,Medium,SYNTHETIC
+Library Issue,Reading Room,Several study tables in the Reading Room are damaged and students have limited usable seating.,Medium,SYNTHETIC
+Security / Safety Issue,Parking Area,A security camera near the Parking Area is not functioning properly.,Medium,SYNTHETIC
+Electrical Issue,Hostel,One fan in the Hostel is making unusual noise and needs maintenance.,Low,SYNTHETIC
+Security / Safety Issue,Lab Block,An exposed hazard near the Lab Block is creating an immediate safety risk for students.,High,SYNTHETIC
+WiFi / Internet Problem,Hostel,"The entire Hostel has almost no usable Wi-Fi connection, affecting online examinations and academic work.",High,SYNTHETIC
+WiFi / Internet Problem,Hostel,"The entire Hostel has almost no usable Wi-Fi connection, affecting online examinations and academic work.",High,SYNTHETIC
+Hostel Issue,Hostel Corridor,The Hostel Corridor has a critical facility failure affecting multiple residents and requires immediate attention.,High,SYNTHETIC
+Classroom Infrastructure,Other,The main classroom electrical fixture in the Other is damaged and poses a potential safety hazard.,High,SYNTHETIC
+Lab / Computer Issue,Lab Block,Required software is unavailable on several computers in the Lab Block.,Medium,SYNTHETIC
+Lab / Computer Issue,Lab Block,Most systems in the Lab Block are unavailable during a scheduled practical examination.,High,SYNTHETIC
+Water Leakage,Lab Block,There is a small water drip near the Lab Block that should be repaired during routine maintenance.,Low,SYNTHETIC
+Washroom Issue,Classroom Block,A major sewage blockage in the Classroom Block is causing wastewater to overflow and requires immediate attention.,High,SYNTHETIC
+Classroom Infrastructure,Classroom Block,"The benches in the classroom are very old and damaged. The storage area below the desks used for keeping bags and belongings is broken in several benches, making it inconvenient for students to keep their items safely.",Medium,REAL
+Water Leakage,Classroom Block,A pipe in the Classroom Block is leaking continuously and the surrounding floor is becoming wet.,Medium,SYNTHETIC
+Security / Safety Issue,Lab Block,A minor issue with a door lock has been noticed near the Lab Block.,Low,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,The curtains and window fittings in the Seminar Hall need minor repair.,Low,SYNTHETIC
+Hostel Issue,Hostel,Water supply in the Hostel is irregular and students are facing difficulty with daily activities.,Medium,SYNTHETIC
+WiFi / Internet Problem,Hostel,"Wi-Fi is slightly slow in the Hostel, especially during busy hours.",Low,SYNTHETIC
+Lab / Computer Issue,Project Lab,The systems in part of the Project Lab are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Lab / Computer Issue,Project Lab,A serious electrical or hardware fault has shut down a major section of the Project Lab.,High,SYNTHETIC
+Lab / Computer Issue,Lab Block,One computer in the Lab Block is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Cleanliness Issue,Lab Block,The Lab Block would benefit from more frequent cleaning during the day.,Low,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,,Medium,REAL
+Cleanliness Issue,Lab Block,Some waste has been left behind in the Lab Block after regular campus activities.,Low,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,"WiFi signal near the classroom block is unstable and keeps disconnecting, causing difficulty in accessing online materials.",Medium,REAL
+WiFi / Internet Problem,Classroom Block,,Medium,REAL
+Classroom Infrastructure,Classroom Block,Doors and windows in the Classroom Block are damaged and require maintenance.,Medium,SYNTHETIC
+Cleanliness Issue,Other,"Most of the washrooms are not well maintained, needs better infra and better management.",High,REAL
+Cleanliness Issue,Lab Block,Some waste has been left behind in the Lab Block after regular campus activities.,Low,SYNTHETIC
+Parking / Transport Issue,Bus Area,The main access route near the Bus Area is obstructed and emergency movement could be affected.,High,SYNTHETIC
+Washroom Issue,Classroom Block,The Classroom Block has severe drainage or sanitation problems and is currently difficult to use safely.,High,SYNTHETIC
+Electrical Issue,Classroom Block,One fan in the Classroom Block is making unusual noise and needs maintenance.,Low,SYNTHETIC
+Security / Safety Issue,Parking Area,The main door lock near the Parking Area is unreliable and needs repair.,Medium,SYNTHETIC
+Electrical Issue,Canteen,A few lights in the Canteen are not working properly.,Low,SYNTHETIC
+Water Leakage,Canteen,A major pipe has burst in the Canteen and a large amount of water is spreading through the area.,High,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,College wifi not available in classrooms.,High,REAL
+Cleanliness Issue,Lab Block,Some waste has been left behind in the Lab Block after regular campus activities.,Low,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,The curtains and window fittings in the Seminar Hall need minor repair.,Low,SYNTHETIC
+Electrical Issue,Hostel,Multiple lights and fans in the Hostel have stopped working.,Medium,SYNTHETIC
+Library Issue,Reading Room,The lighting in one section of the Reading Room is slightly inadequate.,Low,SYNTHETIC
+WiFi / Internet Problem,Lab Block,The Wi-Fi signal in the Lab Block is weak in a few areas but still works intermittently.,Low,SYNTHETIC
+WiFi / Internet Problem,Lab Block,There is a major network outage in the Lab Block and students cannot access required online resources.,High,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,Internet speed in the Seminar Hall drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Cleanliness Issue,Hostel,hostel mess is not hygienic. ,High,REAL
+Parking / Transport Issue,Campus Road,A few parking spaces near the Campus Road are poorly organized.,Low,SYNTHETIC
+Cleanliness Issue,Other,The men's washroom always smells really bad even if you just stand outside it. ,High,REAL
+WiFi / Internet Problem,Seminar Hall,The network in the Seminar Hall becomes unavailable for long periods during the day.,Medium,SYNTHETIC
+Electrical Issue,Classroom Block,"A burning smell is coming from an electrical panel in the Classroom Block, creating a serious safety concern.",High,SYNTHETIC
+Cleanliness Issue,Other,Waste bins in the Other are often overflowing and need more frequent collection.,Medium,SYNTHETIC
+Security / Safety Issue,Hostel,The main door lock near the Hostel is unreliable and needs repair.,Medium,SYNTHETIC
+Library Issue,Library Computer Section,The lighting in one section of the Library Computer Section is slightly inadequate.,Low,SYNTHETIC
+Washroom Issue,Classroom Block,A light in the Classroom Block is not working properly.,Low,SYNTHETIC
+Cleanliness Issue,Other,Garbage is accumulating in the Other and has not been cleared regularly.,Medium,SYNTHETIC
+Washroom Issue,Washroom,A light in the Washroom is not working properly.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The curtains and window fittings in the Classroom Block need minor repair.,Low,SYNTHETIC
+Hostel Issue,Hostel Room,Minor furniture damage has been noticed in the Hostel Room.,Low,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,Doors and windows in the Seminar Hall are damaged and require maintenance.,Medium,SYNTHETIC
+Electrical Issue,Lab Block,One electrical socket in the Lab Block is loose and needs routine repair.,Low,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,A large section of classroom infrastructure in the Seminar Hall has become unsafe for normal student use.,High,SYNTHETIC
+WiFi / Internet Problem,Lab Block,The Wi-Fi connection in the Lab Block sometimes becomes slow for short periods.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,Several computers in the Computer Lab are not starting properly and students are losing lab time.,Medium,SYNTHETIC
+Hostel Issue,Hostel Room,A serious structural problem has been reported in the Hostel Room and students may be at risk if it is not addressed.,High,SYNTHETIC
+Water Leakage,Hostel,Water leakage in the Hostel is affecting nearby facilities and needs repair soon.,Medium,SYNTHETIC
+Classroom Infrastructure,Other,Some desks in the Other have loose writing surfaces and need routine maintenance.,Low,SYNTHETIC
+Electrical Issue,Canteen,An exposed electrical wire in the Canteen is accessible to students and presents an immediate safety risk.,High,SYNTHETIC
+Cleanliness Issue,Other,Some waste has been left behind in the Other after regular campus activities.,Low,SYNTHETIC
+WiFi / Internet Problem,Lab Block,Wi-Fi coverage in the Lab Block is poor across part of the area and affects regular academic work.,Medium,SYNTHETIC
+Security / Safety Issue,Parking Area,A damaged safety barrier near the Parking Area has created a dangerous situation for students.,High,SYNTHETIC
+Water Leakage,Canteen,Water is slowly leaking from a pipe joint in the Canteen.,Low,SYNTHETIC
+Library Issue,Library Computer Section,Several study tables in the Library Computer Section are damaged and students have limited usable seating.,Medium,SYNTHETIC
+Water Leakage,Washroom,A minor tap leak has been noticed in the Washroom.,Low,SYNTHETIC
+Water Leakage,Hostel,A pipe in the Hostel is leaking continuously and the surrounding floor is becoming wet.,Medium,SYNTHETIC
+Lab / Computer Issue,Project Lab,Required software is unavailable on several computers in the Project Lab.,Medium,SYNTHETIC
+WiFi / Internet Problem,Library,There is a major network outage in the Library and students cannot access required online resources.,High,SYNTHETIC
+Lab / Computer Issue,Lab Block,One computer in the Lab Block is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Washroom Issue,Hostel,One flush in the Hostel is faulty but the facility is otherwise usable.,Low,SYNTHETIC
+Cleanliness Issue,Other,Garbage is accumulating in the Other and has not been cleared regularly.,Medium,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,I will not get internet in old block. When working on projects in major project lab we couldn't get internet in our laptop as our laptops don't have ethernet slot.,High,REAL
+Cleanliness Issue,Canteen,Waste bins in the Canteen are often overflowing and need more frequent collection.,Medium,SYNTHETIC
+Lab / Computer Issue,Project Lab,The systems in part of the Project Lab are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Cleanliness Issue,Canteen,There is no proper facilities in canteen to keep used plates and disposal of leftover food.Students are forced to leave plates on table which affects cleanliness ,High,REAL
+Cleanliness Issue,Other,A large amount of waste is scattered through the Other and is creating a serious hygiene concern.,High,SYNTHETIC
+Classroom Infrastructure,Classroom Block,Some desks in the Classroom Block have loose writing surfaces and need routine maintenance.,Low,SYNTHETIC
+Lab / Computer Issue,Project Lab,A keyboard or mouse in the Project Lab is not working properly.,Low,SYNTHETIC
+Cleanliness Issue,Lab Block,The Lab Block has a severe sanitation problem that is affecting students and needs immediate attention.,High,SYNTHETIC
+Library Issue,Reading Room,Several study tables in the Reading Room are damaged and students have limited usable seating.,Medium,SYNTHETIC
+Electrical Issue,Hostel,Power supply in part of the Hostel is frequently interrupted during classes.,Medium,SYNTHETIC
+Washroom Issue,Washroom,The Washroom has severe drainage or sanitation problems and is currently difficult to use safely.,High,SYNTHETIC
+Electrical Issue,Canteen,"A burning smell is coming from an electrical panel in the Canteen, creating a serious safety concern.",High,SYNTHETIC
+Security / Safety Issue,Parking Area,A security camera near the Parking Area is not functioning properly.,Medium,SYNTHETIC
+Water Leakage,Canteen,The Canteen has a recurring leak that is causing water to collect on the floor.,Medium,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,,High,REAL
+Security / Safety Issue,Main Gate,The main door lock near the Main Gate is unreliable and needs repair.,Medium,SYNTHETIC
+Lab / Computer Issue,Project Lab,The systems in part of the Project Lab are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Classroom Infrastructure,Other,"A damaged ceiling panel in the Other is loose and may fall, creating a safety risk for students.",High,SYNTHETIC
+Security / Safety Issue,Hostel,"The Hostel has insufficient lighting at night, making movement difficult.",Medium,SYNTHETIC
+Parking / Transport Issue,Bus Area,A few parking spaces near the Bus Area are poorly organized.,Low,SYNTHETIC
+WiFi / Internet Problem,Hostel,,High,REAL
+Electrical Issue,Hostel,Several electrical outlets in the Hostel are not working and students cannot use required equipment.,Medium,SYNTHETIC
+Hostel Issue,Hostel,A serious structural problem has been reported in the Hostel and students may be at risk if it is not addressed.,High,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,The Wi-Fi signal in the Seminar Hall is weak in a few areas but still works intermittently.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,A keyboard or mouse in the Computer Lab is not working properly.,Low,SYNTHETIC
+Security / Safety Issue,Main Gate,A serious security problem has been reported near the Main Gate and requires immediate attention.,High,SYNTHETIC
+Water Leakage,Canteen,Heavy water leakage in the Canteen is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Lab / Computer Issue,Project Lab,One computer in the Project Lab is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Classroom Infrastructure,Old Block,A large section of classroom infrastructure in the Old Block has become unsafe for normal student use.,High,SYNTHETIC
+Library Issue,Library Computer Section,The main computer or resource service in the Library Computer Section is unavailable during an important academic period.,High,SYNTHETIC
+Security / Safety Issue,Main Gate,A minor issue with a door lock has been noticed near the Main Gate.,Low,SYNTHETIC
+Electrical Issue,Classroom Block,Fans doesn't have speed control.,Medium,REAL
+Electrical Issue,Canteen,An exposed electrical wire in the Canteen is accessible to students and presents an immediate safety risk.,High,SYNTHETIC
+Parking / Transport Issue,Campus Road,The waiting area near the Campus Road needs minor maintenance.,Low,SYNTHETIC
+Security / Safety Issue,Hostel,A security camera near the Hostel is not functioning properly.,Medium,SYNTHETIC
+Cleanliness Issue,Canteen,The Canteen has a severe sanitation problem that is affecting students and needs immediate attention.,High,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,The Wi-Fi outage in the Classroom Block is affecting multiple students during important online academic activities.,High,SYNTHETIC
+Classroom Infrastructure,Old Block,The projector in the Old Block is not working reliably during classes.,Medium,SYNTHETIC
+WiFi / Internet Problem,Lab Block,No internet ,High,REAL
+WiFi / Internet Problem,Classroom Block,,Medium,REAL
+Electrical Issue,Lab Block,Multiple lights and fans in the Lab Block have stopped working.,Medium,SYNTHETIC
+Cleanliness Issue,Hostel,Some waste has been left behind in the Hostel after regular campus activities.,Low,SYNTHETIC
+Water Leakage,Canteen,Water leakage in the Canteen is affecting nearby facilities and needs repair soon.,Medium,SYNTHETIC
+Electrical Issue,Seminar Hall,There are sparks coming from an electrical socket in the Seminar Hall and the area should be checked immediately.,High,SYNTHETIC
+Library Issue,Library Computer Section,A safety issue in the Library Computer Section has forced students to avoid a large section of the library.,High,SYNTHETIC
+Classroom Infrastructure,Other,The main classroom electrical fixture in the Other is damaged and poses a potential safety hazard.,High,SYNTHETIC
+Water Leakage,Hostel,A major pipe has burst in the Hostel and a large amount of water is spreading through the area.,High,SYNTHETIC
+Classroom Infrastructure,Classroom Block,Insufficient fans ,High,REAL
+Security / Safety Issue,Lab Block,A damaged safety barrier near the Lab Block has created a dangerous situation for students.,High,SYNTHETIC
+Water Leakage,Canteen,A pipe in the Canteen is leaking continuously and the surrounding floor is becoming wet.,Medium,SYNTHETIC
+Library Issue,Library Computer Section,The lighting in one section of the Library Computer Section is slightly inadequate.,Low,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,Waste college no wifi,High,REAL
+Lab / Computer Issue,Computer Lab,A keyboard or mouse in the Computer Lab is not working properly.,Low,SYNTHETIC
+Cleanliness Issue,Other,,Low,REAL
+WiFi / Internet Problem,Classroom Block,Wifi is very slow ,Medium,REAL
+Washroom Issue,Classroom Block,A light in the Classroom Block is not working properly.,Low,SYNTHETIC
+Security / Safety Issue,Hostel,The main door lock near the Hostel is unreliable and needs repair.,Medium,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,"I dont get 5g 4g etc in the classrooms and even if i get internet access, its too slow and this is very frustrating",High,REAL
+Lab / Computer Issue,Lab Block,Several computers in the Lab Block are not starting properly and students are losing lab time.,Medium,SYNTHETIC
+Lab / Computer Issue,Lab Block,A keyboard or mouse in the Lab Block is not working properly.,Low,SYNTHETIC
+Hostel Issue,Hostel Room,The fan in the Hostel Room is noisy and should be serviced.,Low,SYNTHETIC
+Classroom Infrastructure,Old Block,The curtains and window fittings in the Old Block need minor repair.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,One computer in the Computer Lab is running slowly and may need routine maintenance.,Low,SYNTHETIC
+WiFi / Internet Problem,Hostel,Internet service in the Hostel is completely unavailable for extended periods and is seriously disrupting academic activities.,High,SYNTHETIC
+Hostel Issue,Hostel,Food change ,Medium,REAL
+WiFi / Internet Problem,Classroom Block,"Wi-Fi is slightly slow in the Classroom Block, especially during busy hours.",Low,SYNTHETIC
+Library Issue,Library Computer Section,Important study materials are unavailable or difficult to access in the Library Computer Section.,Medium,SYNTHETIC
+Cleanliness Issue,Canteen,No hygeine ,High,REAL
+WiFi / Internet Problem,Lab Block,,Medium,REAL
+Washroom Issue,Washroom,A major sewage blockage in the Washroom is causing wastewater to overflow and requires immediate attention.,High,SYNTHETIC
+Parking / Transport Issue,Main Gate,"Vehicles are blocking an emergency access route near the Main Gate, creating a serious safety concern.",High,SYNTHETIC
+Electrical Issue,Other,"In Students Common Area , A fan is not working ",Medium,REAL
+Lab / Computer Issue,Project Lab,One computer in the Project Lab is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Library Issue,Library Computer Section,The library computer section in the Library Computer Section has repeated system failures.,Medium,SYNTHETIC
+Electrical Issue,Hostel,"A burning smell is coming from an electrical panel in the Hostel, creating a serious safety concern.",High,SYNTHETIC
+Electrical Issue,Classroom Block,There are sparks coming from an electrical socket in the Classroom Block and the area should be checked immediately.,High,SYNTHETIC
+Electrical Issue,Classroom Block,A few lights in the Classroom Block are not working properly.,Low,SYNTHETIC
+Security / Safety Issue,Lab Block,The main door lock near the Lab Block is unreliable and needs repair.,Medium,SYNTHETIC
+Water Leakage,Canteen,Heavy water leakage in the Canteen is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Hostel Issue,Hostel Room,The Hostel Room has a major water or electrical problem that is creating an immediate safety and hygiene concern.,High,SYNTHETIC
+Hostel Issue,Hostel,Water supply in the Hostel is irregular and students are facing difficulty with daily activities.,Medium,SYNTHETIC
+Parking / Transport Issue,Campus Road,The waiting area near the Campus Road needs minor maintenance.,Low,SYNTHETIC
+Cleanliness Issue,Lab Block,Some waste has been left behind in the Lab Block after regular campus activities.,Low,SYNTHETIC
+Washroom Issue,Hostel,A major sewage blockage in the Hostel is causing wastewater to overflow and requires immediate attention.,High,SYNTHETIC
+Library Issue,Library Computer Section,The library computer section in the Library Computer Section has repeated system failures.,Medium,SYNTHETIC
+Electrical Issue,Lab Block,A few lights in the Lab Block are not working properly.,Low,SYNTHETIC
+Hostel Issue,Hostel Corridor,Minor furniture damage has been noticed in the Hostel Corridor.,Low,SYNTHETIC
+Library Issue,Library Computer Section,A few chairs in the Library Computer Section are damaged and need routine repair.,Low,SYNTHETIC
+Security / Safety Issue,Main Gate,A corridor light near the Main Gate is not working and should be repaired.,Low,SYNTHETIC
+Hostel Issue,Hostel Dining Area,Several room facilities in the Hostel Dining Area are not working properly and need repair.,Medium,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,Internet service in the Seminar Hall is completely unavailable for extended periods and is seriously disrupting academic activities.,High,SYNTHETIC
+Electrical Issue,Hostel,Power supply in part of the Hostel is frequently interrupted during classes.,Medium,SYNTHETIC
+Parking / Transport Issue,Bus Area,The transport waiting area near the Bus Area does not have enough space during busy periods.,Medium,SYNTHETIC
+Washroom Issue,Hostel,One tap in the Hostel is leaking slightly and needs routine repair.,Low,SYNTHETIC
+Hostel Issue,Hostel Room,A few hostel room fixtures in the Hostel Room need routine maintenance.,Low,SYNTHETIC
+Cleanliness Issue,Canteen,Some waste has been left behind in the Canteen after regular campus activities.,Low,SYNTHETIC
+Security / Safety Issue,Hostel,The main door lock near the Hostel is unreliable and needs repair.,Medium,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,The Wi-Fi outage in the Classroom Block is affecting multiple students during important online academic activities.,High,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,There is a major network outage in the Seminar Hall and students cannot access required online resources.,High,SYNTHETIC
+Hostel Issue,Hostel Corridor,A few hostel room fixtures in the Hostel Corridor need routine maintenance.,Low,SYNTHETIC
+Hostel Issue,Hostel Dining Area,Several room facilities in the Hostel Dining Area are not working properly and need repair.,Medium,SYNTHETIC
+Hostel Issue,Hostel,Several room facilities in the Hostel are not working properly and need repair.,Medium,SYNTHETIC
+Library Issue,Library,Some books in the Library are not arranged correctly and are difficult to locate.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The projector in the Classroom Block is not working reliably during classes.,Medium,SYNTHETIC
+Lab / Computer Issue,Project Lab,Most systems in the Project Lab are unavailable during a scheduled practical examination.,High,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,There is a major network outage in the Seminar Hall and students cannot access required online resources.,High,SYNTHETIC
+Washroom Issue,Classroom Block,The Classroom Block is not being cleaned frequently enough and requires regular maintenance.,Medium,SYNTHETIC
+Parking / Transport Issue,Main Gate,A dangerous traffic situation has developed near the Main Gate and immediate control is required.,High,SYNTHETIC
+WiFi / Internet Problem,Library,The Wi-Fi outage in the Library is affecting multiple students during important online academic activities.,High,SYNTHETIC
+Water Leakage,Washroom,Water leakage in the Washroom is affecting nearby facilities and needs repair soon.,Medium,SYNTHETIC
+Classroom Infrastructure,Old Block,A large section of classroom infrastructure in the Old Block has become unsafe for normal student use.,High,SYNTHETIC
+Lab / Computer Issue,Lab Block,A serious electrical or hardware fault has shut down a major section of the Lab Block.,High,SYNTHETIC
+Lab / Computer Issue,Computer Lab,A serious electrical or hardware fault has shut down a major section of the Computer Lab.,High,SYNTHETIC
+Washroom Issue,Classroom Block,The Classroom Block has severe drainage or sanitation problems and is currently difficult to use safely.,High,SYNTHETIC
+Library Issue,Reading Room,Several study tables in the Reading Room are damaged and students have limited usable seating.,Medium,SYNTHETIC
+Hostel Issue,Hostel,A few hostel room fixtures in the Hostel need routine maintenance.,Low,SYNTHETIC
+WiFi / Internet Problem,Hostel,Wi-Fi in the Hostel frequently disconnects and makes it difficult to attend online classes.,Medium,SYNTHETIC
+Hostel Issue,Hostel Corridor,The fan in the Hostel Corridor is noisy and should be serviced.,Low,SYNTHETIC
+Lab / Computer Issue,Project Lab,Most systems in the Project Lab are unavailable during a scheduled practical examination.,High,SYNTHETIC
+Cleanliness Issue,Classroom Block,The Classroom Block has an unpleasant smell and requires proper cleaning and waste removal.,Medium,SYNTHETIC
+Hostel Issue,Hostel Room,The Hostel Room has a critical facility failure affecting multiple residents and requires immediate attention.,High,SYNTHETIC
+Parking / Transport Issue,Main Gate,Parking near the Main Gate is overcrowded during peak college hours.,Medium,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,Internet speed in the Seminar Hall drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Water Leakage,Other,"In 2nd floor Old building , A urinal is broken .",Medium,REAL
+Washroom Issue,Hostel,The Hostel is not being cleaned frequently enough and requires regular maintenance.,Medium,SYNTHETIC
+Library Issue,Reading Room,The lighting in one section of the Reading Room is slightly inadequate.,Low,SYNTHETIC
+Classroom Infrastructure,Other,Several benches in the Other are damaged and students are having difficulty using them.,Medium,SYNTHETIC
+Washroom Issue,Hostel,The Hostel has severe drainage or sanitation problems and is currently difficult to use safely.,High,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,The projector in the Seminar Hall is not working reliably during classes.,Medium,SYNTHETIC
+Lab / Computer Issue,Computer Lab,A keyboard or mouse in the Computer Lab is not working properly.,Low,SYNTHETIC
+Cleanliness Issue,Canteen,Some waste has been left behind in the Canteen after regular campus activities.,Low,SYNTHETIC
+WiFi / Internet Problem,Hostel,Internet service in the Hostel is completely unavailable for extended periods and is seriously disrupting academic activities.,High,SYNTHETIC
+Electrical Issue,Classroom Block,One fan in the Classroom Block is making unusual noise and needs maintenance.,Low,SYNTHETIC
+Lab / Computer Issue,Lab Block,One computer in the Lab Block is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The desks size aren't suited enough for tall people,Medium,REAL
+WiFi / Internet Problem,Seminar Hall,"The entire Seminar Hall has almost no usable Wi-Fi connection, affecting online examinations and academic work.",High,SYNTHETIC
+Classroom Infrastructure,Other,The main classroom electrical fixture in the Other is damaged and poses a potential safety hazard.,High,SYNTHETIC
+Washroom Issue,Hostel,One flush in the Hostel is faulty but the facility is otherwise usable.,Low,SYNTHETIC
+Classroom Infrastructure,Old Block,The curtains and window fittings in the Old Block need minor repair.,Low,SYNTHETIC
+Electrical Issue,Seminar Hall,"A burning smell is coming from an electrical panel in the Seminar Hall, creating a serious safety concern.",High,SYNTHETIC
+Security / Safety Issue,Parking Area,A minor issue with a door lock has been noticed near the Parking Area.,Low,SYNTHETIC
+Cleanliness Issue,Other,Garbage is accumulating in the Other and has not been cleared regularly.,Medium,SYNTHETIC
+Water Leakage,Lab Block,Heavy water leakage in the Lab Block is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Cleanliness Issue,Canteen,Garbage is accumulating in the Canteen and has not been cleared regularly.,Medium,SYNTHETIC
+Classroom Infrastructure,Classroom Block,We don't have enough desk in our class,High,REAL
+Hostel Issue,Hostel Room,A serious structural problem has been reported in the Hostel Room and students may be at risk if it is not addressed.,High,SYNTHETIC
+Classroom Infrastructure,Other,The curtains and window fittings in the Other need minor repair.,Low,SYNTHETIC
+Library Issue,Library,A few chairs in the Library are damaged and need routine repair.,Low,SYNTHETIC
+WiFi / Internet Problem,Hostel,"In our hostel internet is very slow and unstable for the past few days. The internet is not working properly, and the signal strength is very weak. Because of this issue, we are facing difficulties in attending online classes,submitting assignments, and completing academic work.",Medium,REAL
+Electrical Issue,Seminar Hall,Several electrical outlets in the Seminar Hall are not working and students cannot use required equipment.,Medium,SYNTHETIC
+Classroom Infrastructure,Old Block,The classroom board in the Old Block is worn out and difficult to read from the back.,Low,SYNTHETIC
+Hostel Issue,Hostel Dining Area,A few hostel room fixtures in the Hostel Dining Area need routine maintenance.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The curtains and window fittings in the Classroom Block need minor repair.,Low,SYNTHETIC
+Classroom Infrastructure,Other,The projector in the Other is not working reliably during classes.,Medium,SYNTHETIC
+Library Issue,Reading Room,Some books in the Reading Room are not arranged correctly and are difficult to locate.,Low,SYNTHETIC
+Parking / Transport Issue,Bus Area,The transport waiting area near the Bus Area does not have enough space during busy periods.,Medium,SYNTHETIC
+Cleanliness Issue,Hostel,The Hostel would benefit from more frequent cleaning during the day.,Low,SYNTHETIC
+Security / Safety Issue,Classroom Block,A serious security problem has been reported near the Classroom Block and requires immediate attention.,High,SYNTHETIC
+WiFi / Internet Problem,Lab Block,There is a major network outage in the Lab Block and students cannot access required online resources.,High,SYNTHETIC
+Washroom Issue,Hostel,The Hostel has a serious hygiene issue affecting many students and needs urgent cleaning and repair.,High,SYNTHETIC
+Cleanliness Issue,Other,The Other has an unpleasant smell and requires proper cleaning and waste removal.,Medium,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,The projector in the Seminar Hall is not working reliably during classes.,Medium,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The classroom board in the Classroom Block is worn out and difficult to read from the back.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,One monitor in the Computer Lab has display issues but other systems are available.,Low,SYNTHETIC
+Security / Safety Issue,Parking Area,A serious security problem has been reported near the Parking Area and requires immediate attention.,High,SYNTHETIC
+Cleanliness Issue,Other,The Other has a severe sanitation problem that is affecting students and needs immediate attention.,High,SYNTHETIC
+Security / Safety Issue,Lab Block,The main door lock near the Lab Block is unreliable and needs repair.,Medium,SYNTHETIC
+Washroom Issue,Hostel,Several taps or flushes in the Hostel are not working and students are facing inconvenience.,Medium,SYNTHETIC
+Washroom Issue,Classroom Block,A major sewage blockage in the Classroom Block is causing wastewater to overflow and requires immediate attention.,High,SYNTHETIC
+Library Issue,Reading Room,Important study materials are unavailable or difficult to access in the Reading Room.,Medium,SYNTHETIC
+Washroom Issue,Washroom,One flush in the Washroom is faulty but the facility is otherwise usable.,Low,SYNTHETIC
+Parking / Transport Issue,Bus Area,The main access route near the Bus Area is obstructed and emergency movement could be affected.,High,SYNTHETIC
+Water Leakage,Lab Block,Water is slowly leaking from a pipe joint in the Lab Block.,Low,SYNTHETIC
+Lab / Computer Issue,Project Lab,The systems in part of the Project Lab are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Security / Safety Issue,Main Gate,An exposed hazard near the Main Gate is creating an immediate safety risk for students.,High,SYNTHETIC
+Cleanliness Issue,Hostel,Garbage is accumulating in the Hostel and has not been cleared regularly.,Medium,SYNTHETIC
+Hostel Issue,Hostel Room,Water supply in the Hostel Room is irregular and students are facing difficulty with daily activities.,Medium,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,Internet speed in the Classroom Block drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,Several computers in the Computer Lab are not starting properly and students are losing lab time.,Medium,SYNTHETIC
+Electrical Issue,Hostel,One electrical socket in the Hostel is loose and needs routine repair.,Low,SYNTHETIC
+Lab / Computer Issue,Lab Block,A keyboard or mouse in the Lab Block is not working properly.,Low,SYNTHETIC
+Classroom Infrastructure,Other,Some desks in the Other have loose writing surfaces and need routine maintenance.,Low,SYNTHETIC
+Electrical Issue,Hostel,One electrical socket in the Hostel is loose and needs routine repair.,Low,SYNTHETIC
+Hostel Issue,Hostel Dining Area,The fan in the Hostel Dining Area is noisy and should be serviced.,Low,SYNTHETIC
+Parking / Transport Issue,Main Gate,A few parking spaces near the Main Gate are poorly organized.,Low,SYNTHETIC
+Hostel Issue,Hostel,The Hostel has a critical facility failure affecting multiple residents and requires immediate attention.,High,SYNTHETIC
+Security / Safety Issue,Lab Block,"The Lab Block has insufficient lighting at night, making movement difficult.",Medium,SYNTHETIC
+Water Leakage,Washroom,A pipe in the Washroom is leaking continuously and the surrounding floor is becoming wet.,Medium,SYNTHETIC
+Electrical Issue,Hostel,There are sparks coming from an electrical socket in the Hostel and the area should be checked immediately.,High,SYNTHETIC
+Washroom Issue,Classroom Block,Water supply in the Classroom Block is inconsistent and affects normal use.,Medium,SYNTHETIC
+WiFi / Internet Problem,Library,"The entire Library has almost no usable Wi-Fi connection, affecting online examinations and academic work.",High,SYNTHETIC
+Lab / Computer Issue,Project Lab,A serious electrical or hardware fault has shut down a major section of the Project Lab.,High,SYNTHETIC
+Hostel Issue,Hostel Dining Area,The Hostel Dining Area has repeated maintenance issues that are affecting students' daily routine.,Medium,SYNTHETIC
+Parking / Transport Issue,Parking Area,The waiting area near the Parking Area needs minor maintenance.,Low,SYNTHETIC
+Hostel Issue,Hostel Room,A serious structural problem has been reported in the Hostel Room and students may be at risk if it is not addressed.,High,SYNTHETIC
+Lab / Computer Issue,Project Lab,Most systems in the Project Lab are unavailable during a scheduled practical examination.,High,SYNTHETIC
+Electrical Issue,Hostel,"A burning smell is coming from an electrical panel in the Hostel, creating a serious safety concern.",High,SYNTHETIC
+Water Leakage,Lab Block,Water leakage in the Lab Block is affecting nearby facilities and needs repair soon.,Medium,SYNTHETIC
+Cleanliness Issue,Classroom Block,The Classroom Block has a severe sanitation problem that is affecting students and needs immediate attention.,High,SYNTHETIC
+Lab / Computer Issue,Lab Block,One computer in the Lab Block is running slowly and may need routine maintenance.,Low,SYNTHETIC
+WiFi / Internet Problem,Library,Internet service in the Library is completely unavailable for extended periods and is seriously disrupting academic activities.,High,SYNTHETIC
+Parking / Transport Issue,Bus Area,"Vehicles are frequently blocking the Bus Area, making it difficult for students to enter and exit.",Medium,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,The Wi-Fi outage in the Seminar Hall is affecting multiple students during important online academic activities.,High,SYNTHETIC
+Water Leakage,Hostel,Water leakage in the Hostel is affecting nearby facilities and needs repair soon.,Medium,SYNTHETIC
+Water Leakage,Canteen,A minor tap leak has been noticed in the Canteen.,Low,SYNTHETIC
+Water Leakage,Canteen,The Canteen is flooding because of a major leak and immediate intervention is required.,High,SYNTHETIC
+Cleanliness Issue,Canteen,Waste bins in the Canteen are often overflowing and need more frequent collection.,Medium,SYNTHETIC
+Electrical Issue,Classroom Block,"A burning smell is coming from an electrical panel in the Classroom Block, creating a serious safety concern.",High,SYNTHETIC
+Washroom Issue,Classroom Block,A major sewage blockage in the Classroom Block is causing wastewater to overflow and requires immediate attention.,High,SYNTHETIC
+Classroom Infrastructure,Other,A large section of classroom infrastructure in the Other has become unsafe for normal student use.,High,SYNTHETIC
+Classroom Infrastructure,Other,"A damaged ceiling panel in the Other is loose and may fall, creating a safety risk for students.",High,SYNTHETIC
+Electrical Issue,Hostel,There are sparks coming from an electrical socket in the Hostel and the area should be checked immediately.,High,SYNTHETIC
+Hostel Issue,Hostel,The fan in the Hostel is noisy and should be serviced.,Low,SYNTHETIC
+Water Leakage,Canteen,Heavy water leakage in the Canteen is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Electrical Issue,Seminar Hall,Multiple lights and fans in the Seminar Hall have stopped working.,Medium,SYNTHETIC
+Water Leakage,Washroom,Heavy water leakage in the Washroom is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Lab / Computer Issue,Project Lab,Several computers in the Project Lab are not starting properly and students are losing lab time.,Medium,SYNTHETIC
+Library Issue,Reading Room,The library computer section in the Reading Room has repeated system failures.,Medium,SYNTHETIC
+WiFi / Internet Problem,Hostel,The Wi-Fi connection in the Hostel sometimes becomes slow for short periods.,Low,SYNTHETIC
+Lab / Computer Issue,Project Lab,One computer in the Project Lab is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Water Leakage,Classroom Block,A pipe in the Classroom Block is leaking continuously and the surrounding floor is becoming wet.,Medium,SYNTHETIC
+Water Leakage,Hostel,A major pipe has burst in the Hostel and a large amount of water is spreading through the area.,High,SYNTHETIC
+Cleanliness Issue,Classroom Block,Waste bins in the Classroom Block are often overflowing and need more frequent collection.,Medium,SYNTHETIC
+Electrical Issue,Lab Block,No electricity in the lab,High,REAL
+Classroom Infrastructure,Old Block,A few classroom benches in the Old Block have minor damage but can still be used.,Low,SYNTHETIC
+Water Leakage,Hostel,Heavy water leakage in the Hostel is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Lab / Computer Issue,Project Lab,One monitor in the Project Lab has display issues but other systems are available.,Low,SYNTHETIC
+Library Issue,Reading Room,A few chairs in the Reading Room are damaged and need routine repair.,Low,SYNTHETIC
+Parking / Transport Issue,Campus Road,The waiting area near the Campus Road needs minor maintenance.,Low,SYNTHETIC
+Electrical Issue,Classroom Block,One electrical socket in the Classroom Block is loose and needs routine repair.,Low,SYNTHETIC
+Library Issue,Library,Important study materials are unavailable or difficult to access in the Library.,Medium,SYNTHETIC
+Water Leakage,Washroom,Heavy water leakage in the Washroom is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,The Wi-Fi’s slow in my class.,Medium,REAL
+WiFi / Internet Problem,Other,In Old building college wifi is too slow or non existent ,Medium,REAL
+Electrical Issue,Classroom Block,The lights are not working,Medium,REAL
+Cleanliness Issue,Lab Block,The Lab Block has a severe sanitation problem that is affecting students and needs immediate attention.,High,SYNTHETIC
+Library Issue,Library Computer Section,A safety issue in the Library Computer Section has forced students to avoid a large section of the library.,High,SYNTHETIC
+Washroom Issue,Hostel,Several taps or flushes in the Hostel are not working and students are facing inconvenience.,Medium,SYNTHETIC
+Parking / Transport Issue,Parking Area,The transport waiting area near the Parking Area does not have enough space during busy periods.,Medium,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,The Wi-Fi signal in the Seminar Hall is weak in a few areas but still works intermittently.,Low,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,The main classroom electrical fixture in the Seminar Hall is damaged and poses a potential safety hazard.,High,SYNTHETIC
+Hostel Issue,Hostel Dining Area,The fan in the Hostel Dining Area is noisy and should be serviced.,Low,SYNTHETIC
+Cleanliness Issue,Lab Block,The Lab Block has a severe sanitation problem that is affecting students and needs immediate attention.,High,SYNTHETIC
+Hostel Issue,Hostel Dining Area,The Hostel Dining Area has a critical facility failure affecting multiple residents and requires immediate attention.,High,SYNTHETIC
+Hostel Issue,Hostel,Water supply in the Hostel is irregular and students are facing difficulty with daily activities.,Medium,SYNTHETIC
+WiFi / Internet Problem,Lab Block,"Wi-Fi is slightly slow in the Lab Block, especially during busy hours.",Low,SYNTHETIC
+WiFi / Internet Problem,Canteen,No wifi ,High,REAL
+Classroom Infrastructure,Seminar Hall,The classroom lights in the Seminar Hall are insufficient and affect visibility during lectures.,Medium,SYNTHETIC
+WiFi / Internet Problem,Library,Wi-Fi in the Library frequently disconnects and makes it difficult to attend online classes.,Medium,SYNTHETIC
+Lab / Computer Issue,Project Lab,A keyboard or mouse in the Project Lab is not working properly.,Low,SYNTHETIC
+Hostel Issue,Hostel Corridor,The Hostel Corridor has repeated maintenance issues that are affecting students' daily routine.,Medium,SYNTHETIC
+Hostel Issue,Hostel Dining Area,The Hostel Dining Area has repeated maintenance issues that are affecting students' daily routine.,Medium,SYNTHETIC
+Electrical Issue,Classroom Block,Multiple lights and fans in the Classroom Block have stopped working.,Medium,SYNTHETIC
+Electrical Issue,Classroom Block,We dont have enough circuit structure and electrical outlets in our campus in the seminar hall and many other rooms as well.,Medium,REAL
+Hostel Issue,Hostel Room,Water supply in the Hostel Room is irregular and students are facing difficulty with daily activities.,Medium,SYNTHETIC
+WiFi / Internet Problem,Library,The network in the Library becomes unavailable for long periods during the day.,Medium,SYNTHETIC
+Lab / Computer Issue,Lab Block,One computer in the Lab Block is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Cleanliness Issue,Hostel,Waste bins in the Hostel are often overflowing and need more frequent collection.,Medium,SYNTHETIC
+Library Issue,Library,The library computer section in the Library has repeated system failures.,Medium,SYNTHETIC
+Washroom Issue,Classroom Block,One flush in the Classroom Block is faulty but the facility is otherwise usable.,Low,SYNTHETIC
+Electrical Issue,Hostel,There are sparks coming from an electrical socket in the Hostel and the area should be checked immediately.,High,SYNTHETIC
+Electrical Issue,Seminar Hall,One electrical socket in the Seminar Hall is loose and needs routine repair.,Low,SYNTHETIC
+Electrical Issue,Classroom Block,Several electrical outlets in the Classroom Block are not working and students cannot use required equipment.,Medium,SYNTHETIC
+Water Leakage,Canteen,Heavy water leakage in the Canteen is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Hostel Issue,Hostel,Minor furniture damage has been noticed in the Hostel.,Low,SYNTHETIC
+Washroom Issue,Classroom Block,One flush in the Classroom Block is faulty but the facility is otherwise usable.,Low,SYNTHETIC
+Classroom Infrastructure,Canteen,,Medium,REAL
+Lab / Computer Issue,Computer Lab,The systems in part of the Computer Lab are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Cleanliness Issue,Hostel,The Hostel needs routine cleaning because dust has accumulated in several areas.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The curtains and window fittings in the Classroom Block need minor repair.,Low,SYNTHETIC
+Cleanliness Issue,Lab Block,"Wastewater and garbage have accumulated in the Lab Block, making the area unsafe and unhygienic.",High,SYNTHETIC
+Water Leakage,Other,"The maintenance is very bad near the drinking water facility, Students waste water while filling their bottles",Low,REAL
+Electrical Issue,Seminar Hall,Power supply in part of the Seminar Hall is frequently interrupted during classes.,Medium,SYNTHETIC
+Library Issue,Library Computer Section,The main computer or resource service in the Library Computer Section is unavailable during an important academic period.,High,SYNTHETIC
+Electrical Issue,Classroom Block,A few lights in the Classroom Block are not working properly.,Low,SYNTHETIC
+Washroom Issue,Hostel,A light in the Hostel is not working properly.,Low,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,The Wi-Fi signal in the Classroom Block is weak in a few areas but still works intermittently.,Low,SYNTHETIC
+Electrical Issue,Canteen,There are sparks coming from an electrical socket in the Canteen and the area should be checked immediately.,High,SYNTHETIC
+Water Leakage,Canteen,Heavy water leakage in the Canteen is reaching electrical equipment and creating a serious safety risk.,High,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,The main classroom electrical fixture in the Seminar Hall is damaged and poses a potential safety hazard.,High,SYNTHETIC
+Classroom Infrastructure,Classroom Block,"A damaged ceiling panel in the Classroom Block is loose and may fall, creating a safety risk for students.",High,SYNTHETIC
+Hostel Issue,Hostel,A few hostel room fixtures in the Hostel need routine maintenance.,Low,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,"The entire Classroom Block has almost no usable Wi-Fi connection, affecting online examinations and academic work.",High,SYNTHETIC
+Hostel Issue,Hostel,"The issue in hostel, not providing chapati in the meal and dinner due shortage gas cylinder.
+Gym is not in the proper condition 
+Cleaning staff are missing their timings and not maintained the cleanliness of room 
+Our hostel is far from the main highway ",High,REAL
+Classroom Infrastructure,Seminar Hall,Some desks in the Seminar Hall have loose writing surfaces and need routine maintenance.,Low,SYNTHETIC
+WiFi / Internet Problem,Lab Block,There is a major network outage in the Lab Block and students cannot access required online resources.,High,SYNTHETIC
+Water Leakage,Lab Block,Water is slowly leaking from a pipe joint in the Lab Block.,Low,SYNTHETIC
+Security / Safety Issue,Parking Area,A serious security problem has been reported near the Parking Area and requires immediate attention.,High,SYNTHETIC
+Classroom Infrastructure,Classroom Block,"Some of the fans doesn't work at all,and also there are not many more of charging ports available.",Medium,REAL
+Hostel Issue,Hostel,A serious structural problem has been reported in the Hostel and students may be at risk if it is not addressed.,High,SYNTHETIC
+Classroom Infrastructure,Lab Block,Not good,Low,REAL
+Library Issue,Library,A few chairs in the Library are damaged and need routine repair.,Low,SYNTHETIC
+Electrical Issue,Classroom Block,One electrical socket in the Classroom Block is loose and needs routine repair.,Low,SYNTHETIC
+Classroom Infrastructure,Other,The classroom lights in the Other are insufficient and affect visibility during lectures.,Medium,SYNTHETIC
+Washroom Issue,Hostel,A light in the Hostel is not working properly.,Low,SYNTHETIC
+WiFi / Internet Problem,Library,The internet connection in the Library is unreliable and students have to reconnect several times.,Medium,SYNTHETIC
+Lab / Computer Issue,Computer Lab,One computer in the Computer Lab is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Classroom Infrastructure,Old Block,The projector in the Old Block is not working reliably during classes.,Medium,SYNTHETIC
+WiFi / Internet Problem,Lab Block,Wi-Fi in the Lab Block frequently disconnects and makes it difficult to attend online classes.,Medium,SYNTHETIC
+Classroom Infrastructure,Other,"A damaged ceiling panel in the Other is loose and may fall, creating a safety risk for students.",High,SYNTHETIC
+Hostel Issue,Hostel Dining Area,Water supply in the Hostel Dining Area is irregular and students are facing difficulty with daily activities.,Medium,SYNTHETIC
+Hostel Issue,Hostel Room,Several room facilities in the Hostel Room are not working properly and need repair.,Medium,SYNTHETIC
+Lab / Computer Issue,Computer Lab,Several computers in the Computer Lab are not starting properly and students are losing lab time.,Medium,SYNTHETIC
+Cleanliness Issue,Classroom Block,"Wastewater and garbage have accumulated in the Classroom Block, making the area unsafe and unhygienic.",High,SYNTHETIC
+Lab / Computer Issue,Computer Lab,A serious electrical or hardware fault has shut down a major section of the Computer Lab.,High,SYNTHETIC
+Parking / Transport Issue,Bus Area,A dangerous traffic situation has developed near the Bus Area and immediate control is required.,High,SYNTHETIC
+WiFi / Internet Problem,Hostel,"The entire Hostel has almost no usable Wi-Fi connection, affecting online examinations and academic work.",High,SYNTHETIC
+Library Issue,Library,Several study tables in the Library are damaged and students have limited usable seating.,Medium,SYNTHETIC
+Water Leakage,Classroom Block,There is a small water drip near the Classroom Block that should be repaired during routine maintenance.,Low,SYNTHETIC
+Electrical Issue,Canteen,There are sparks coming from an electrical socket in the Canteen and the area should be checked immediately.,High,SYNTHETIC
+Classroom Infrastructure,Old Block,Several benches in the Old Block are damaged and students are having difficulty using them.,Medium,SYNTHETIC
+Hostel Issue,Hostel Room,A serious structural problem has been reported in the Hostel Room and students may be at risk if it is not addressed.,High,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,Very bad connectivity,Low,REAL
+Parking / Transport Issue,Campus Road,The transport waiting area near the Campus Road does not have enough space during busy periods.,Medium,SYNTHETIC
+Parking / Transport Issue,Parking Area,"Vehicles are frequently blocking the Parking Area, making it difficult for students to enter and exit.",Medium,SYNTHETIC
+WiFi / Internet Problem,Library,Internet speed in the Library drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Classroom Infrastructure,Other,Doors and windows in the Other are damaged and require maintenance.,Medium,SYNTHETIC
+Electrical Issue,Seminar Hall,One electrical socket in the Seminar Hall is loose and needs routine repair.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,A large section of classroom infrastructure in the Classroom Block has become unsafe for normal student use.,High,SYNTHETIC
+Water Leakage,Hostel,A minor tap leak has been noticed in the Hostel.,Low,SYNTHETIC
+Cleanliness Issue,Classroom Block,Some waste has been left behind in the Classroom Block after regular campus activities.,Low,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,"the wifi is really slow,and since there is very little connectivity iin the old block,it might be helpful to provide a proper wifi connection for educational purposes.",High,REAL
+Hostel Issue,Hostel,Several room facilities in the Hostel are not working properly and need repair.,Medium,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,Internet speed in the Seminar Hall drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Cleanliness Issue,Classroom Block,Some waste has been left behind in the Classroom Block after regular campus activities.,Low,SYNTHETIC
+Security / Safety Issue,Parking Area,The main door lock near the Parking Area is unreliable and needs repair.,Medium,SYNTHETIC
+WiFi / Internet Problem,Lab Block,Internet speed in the Lab Block drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Cleanliness Issue,Canteen,The Canteen has an unpleasant smell and requires proper cleaning and waste removal.,Medium,SYNTHETIC
+WiFi / Internet Problem,Other,Signal issue all over the campus.,High,REAL
+Library Issue,Library,Several study tables in the Library are damaged and students have limited usable seating.,Medium,SYNTHETIC
+WiFi / Internet Problem,Library,Internet speed in the Library drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Washroom Issue,Hostel,One tap in the Hostel is leaking slightly and needs routine repair.,Low,SYNTHETIC
+Electrical Issue,Hostel,An exposed electrical wire in the Hostel is accessible to students and presents an immediate safety risk.,High,SYNTHETIC
+Classroom Infrastructure,Old Block,Doors and windows in the Old Block are damaged and require maintenance.,Medium,SYNTHETIC
+Washroom Issue,Washroom,One flush in the Washroom is faulty but the facility is otherwise usable.,Low,SYNTHETIC
+Cleanliness Issue,Lab Block,The Lab Block needs routine cleaning because dust has accumulated in several areas.,Low,SYNTHETIC
+Washroom Issue,Classroom Block,A major sewage blockage in the Classroom Block is causing wastewater to overflow and requires immediate attention.,High,SYNTHETIC
+Library Issue,Library Computer Section,Some books in the Library Computer Section are not arranged correctly and are difficult to locate.,Low,SYNTHETIC
+Security / Safety Issue,Hostel,The main door lock near the Hostel is unreliable and needs repair.,Medium,SYNTHETIC
+Classroom Infrastructure,Classroom Block,Not well equipped ,Medium,REAL
+WiFi / Internet Problem,Lab Block,Wi-Fi in the Lab Block frequently disconnects and makes it difficult to attend online classes.,Medium,SYNTHETIC
+Hostel Issue,Hostel Dining Area,A few hostel room fixtures in the Hostel Dining Area need routine maintenance.,Low,SYNTHETIC
+Electrical Issue,Canteen,Multiple lights and fans in the Canteen have stopped working.,Medium,SYNTHETIC
+WiFi / Internet Problem,Hostel,"The entire Hostel has almost no usable Wi-Fi connection, affecting online examinations and academic work.",High,SYNTHETIC
+Classroom Infrastructure,Classroom Block,The classroom board in the Classroom Block is worn out and difficult to read from the back.,Low,SYNTHETIC
+Library Issue,Reading Room,The lighting in one section of the Reading Room is slightly inadequate.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,Some desks in the Classroom Block have loose writing surfaces and need routine maintenance.,Low,SYNTHETIC
+Cleanliness Issue,Hostel,A large amount of waste is scattered through the Hostel and is creating a serious hygiene concern.,High,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,The curtains and window fittings in the Seminar Hall need minor repair.,Low,SYNTHETIC
+Electrical Issue,Classroom Block,Power supply in part of the Classroom Block is frequently interrupted during classes.,Medium,SYNTHETIC
+Washroom Issue,Hostel,The Hostel has severe drainage or sanitation problems and is currently difficult to use safely.,High,SYNTHETIC
+Washroom Issue,Classroom Block,A major sewage blockage in the Classroom Block is causing wastewater to overflow and requires immediate attention.,High,SYNTHETIC
+Cleanliness Issue,Classroom Block,Some waste has been left behind in the Classroom Block after regular campus activities.,Low,SYNTHETIC
+Water Leakage,Hostel,A pipe in the Hostel is leaking continuously and the surrounding floor is becoming wet.,Medium,SYNTHETIC
+Library Issue,Reading Room,A major equipment failure has made an important section of the Reading Room unusable during examination preparation.,High,SYNTHETIC
+Security / Safety Issue,Classroom Block,A minor issue with a door lock has been noticed near the Classroom Block.,Low,SYNTHETIC
+Cleanliness Issue,Hostel,"Wastewater and garbage have accumulated in the Hostel, making the area unsafe and unhygienic.",High,SYNTHETIC
+Lab / Computer Issue,Computer Lab,The systems in part of the Computer Lab are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Library Issue,Reading Room,A major equipment failure has made an important section of the Reading Room unusable during examination preparation.,High,SYNTHETIC
+Washroom Issue,Hostel,The Hostel is not being cleaned frequently enough and requires regular maintenance.,Medium,SYNTHETIC
+Lab / Computer Issue,Project Lab,One computer in the Project Lab is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Classroom Infrastructure,Classroom Block,Some desks in the Classroom Block have loose writing surfaces and need routine maintenance.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,One computer in the Computer Lab is running slowly and may need routine maintenance.,Low,SYNTHETIC
+Lab / Computer Issue,Project Lab,Most systems in the Project Lab are unavailable during a scheduled practical examination.,High,SYNTHETIC
+Library Issue,Reading Room,A safety issue in the Reading Room has forced students to avoid a large section of the library.,High,SYNTHETIC
+Cleanliness Issue,Other,The Other would benefit from more frequent cleaning during the day.,Low,SYNTHETIC
+WiFi / Internet Problem,Hostel,Wi-Fi in the Hostel frequently disconnects and makes it difficult to attend online classes.,Medium,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,"I barely get any connection inside the classrooms, As i cse student i find it to be a big issue, as we work a lot on our computing devices.",High,REAL
+Washroom Issue,Hostel,A light in the Hostel is not working properly.,Low,SYNTHETIC
+Library Issue,Library,The library computer section in the Library has repeated system failures.,Medium,SYNTHETIC
+Parking / Transport Issue,Bus Area,A dangerous traffic situation has developed near the Bus Area and immediate control is required.,High,SYNTHETIC
+Parking / Transport Issue,Campus Road,A few parking spaces near the Campus Road are poorly organized.,Low,SYNTHETIC
+WiFi / Internet Problem,Seminar Hall,The Wi-Fi outage in the Seminar Hall is affecting multiple students during important online academic activities.,High,SYNTHETIC
+Classroom Infrastructure,Other,Several benches in the Other are damaged and students are having difficulty using them.,Medium,SYNTHETIC
+Electrical Issue,Classroom Block,A few lights in the Classroom Block are not working properly.,Low,SYNTHETIC
+Electrical Issue,Lab Block,An exposed electrical wire in the Lab Block is accessible to students and presents an immediate safety risk.,High,SYNTHETIC
+Cleanliness Issue,Other,The Other has a severe sanitation problem that is affecting students and needs immediate attention.,High,SYNTHETIC
+Security / Safety Issue,Parking Area,A damaged safety barrier near the Parking Area has created a dangerous situation for students.,High,SYNTHETIC
+Classroom Infrastructure,Other,Several benches in the Other are damaged and students are having difficulty using them.,Medium,SYNTHETIC
+Classroom Infrastructure,Seminar Hall,Doors and windows in the Seminar Hall are damaged and require maintenance.,Medium,SYNTHETIC
+WiFi / Internet Problem,Lab Block,Internet speed in the Lab Block drops occasionally while accessing normal study material.,Low,SYNTHETIC
+Parking / Transport Issue,Bus Area,The waiting area near the Bus Area needs minor maintenance.,Low,SYNTHETIC
+Water Leakage,Washroom,The Washroom is flooding because of a major leak and immediate intervention is required.,High,SYNTHETIC
+Classroom Infrastructure,Old Block,The projector in the Old Block is not working reliably during classes.,Medium,SYNTHETIC
+Lab / Computer Issue,Computer Lab,One monitor in the Computer Lab has display issues but other systems are available.,Low,SYNTHETIC
+Water Leakage,Canteen,The Canteen has a recurring leak that is causing water to collect on the floor.,Medium,SYNTHETIC
+Library Issue,Library,The lighting in one section of the Library is slightly inadequate.,Low,SYNTHETIC
+Parking / Transport Issue,Bus Area,Parking markings near the Bus Area are unclear and need repainting.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,Required software is unavailable on several computers in the Computer Lab.,Medium,SYNTHETIC
+Security / Safety Issue,Main Gate,A damaged safety barrier near the Main Gate has created a dangerous situation for students.,High,SYNTHETIC
+Lab / Computer Issue,Project Lab,Required software is unavailable on several computers in the Project Lab.,Medium,SYNTHETIC
+Electrical Issue,Classroom Block,"A burning smell is coming from an electrical panel in the Classroom Block, creating a serious safety concern.",High,SYNTHETIC
+Lab / Computer Issue,Lab Block,The systems in part of the Lab Block are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Hostel Issue,Hostel,Market issue,Medium,REAL
+Cleanliness Issue,Canteen,Some waste has been left behind in the Canteen after regular campus activities.,Low,SYNTHETIC
+Water Leakage,Canteen,A minor tap leak has been noticed in the Canteen.,Low,SYNTHETIC
+WiFi / Internet Problem,Classroom Block,Internet service in the Classroom Block is completely unavailable for extended periods and is seriously disrupting academic activities.,High,SYNTHETIC
+Lab / Computer Issue,Computer Lab,One monitor in the Computer Lab has display issues but other systems are available.,Low,SYNTHETIC
+Lab / Computer Issue,Computer Lab,The systems in part of the Computer Lab are frequently freezing during practical sessions.,Medium,SYNTHETIC
+Electrical Issue,Seminar Hall,"A burning smell is coming from an electrical panel in the Seminar Hall, creating a serious safety concern.",High,SYNTHETIC
+Cleanliness Issue,Canteen,Some waste has been left behind in the Canteen after regular campus activities.,Low,SYNTHETIC

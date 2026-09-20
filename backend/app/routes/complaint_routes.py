@@ -8,6 +8,7 @@ from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintStatusHistory, Department, User
 from app.services.notification_service import NotificationService, NotificationServiceError
+from app.services.priority_service import PriorityService
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
 
@@ -122,6 +123,8 @@ def create_complaint():
 
     try:
         db.session.flush()
+        complaint.support_count = 0
+        PriorityService.update_complaint_priority(complaint, recalculate_ml=True)
 
         NotificationService.create_notification(
             complaint.student_id,
@@ -250,6 +253,8 @@ def update_complaint(complaint_id):
 
     old_status = complaint.status
     old_supervisor_id = complaint.supervisor_id
+    old_description = complaint.description
+    old_department_id = complaint.department_id
 
     if 'status' in payload:
         normalized_status = _normalize_value(payload.get('status'))
@@ -340,6 +345,8 @@ def update_complaint(complaint_id):
 
     should_notify_assigned = complaint.supervisor_id != old_supervisor_id and complaint.supervisor_id is not None
     status_changed = complaint.status != old_status
+    description_changed = complaint.description != old_description
+    department_changed = complaint.department_id != old_department_id
 
     if status_changed:
         status_history = ComplaintStatusHistory(
@@ -352,6 +359,12 @@ def update_complaint(complaint_id):
         db.session.add(status_history)
 
     try:
+        if description_changed or department_changed:
+            PriorityService.update_complaint_priority(
+                complaint,
+                recalculate_ml=description_changed,
+            )
+
         if should_notify_assigned:
             NotificationService.create_notification(
                 complaint.student_id,
@@ -491,6 +504,7 @@ def support_complaint(complaint_id):
 
     _recalculate_support_count(complaint)
     try:
+        PriorityService.update_complaint_priority(complaint)
         db.session.commit()
     except Exception:
         db.session.rollback()
