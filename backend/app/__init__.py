@@ -81,7 +81,6 @@ def register_blueprints(app):
     from app.routes.lost_found_routes import lf_bp
     from app.routes.notification_routes import notif_bp
     from app.routes.announcement_routes import announcement_bp
-    from app.routes.analytics_routes import analytics_bp
     
     # Register blueprints with API prefix
     api_prefix = app.config.get('API_PREFIX', '/api/v1')
@@ -92,7 +91,6 @@ def register_blueprints(app):
     app.register_blueprint(lf_bp, url_prefix=f'{api_prefix}/lost-found')
     app.register_blueprint(notif_bp, url_prefix=f'{api_prefix}/notifications')
     app.register_blueprint(announcement_bp, url_prefix=f'{api_prefix}/announcements')
-    app.register_blueprint(analytics_bp, url_prefix=f'{api_prefix}/analytics')
     
     app.logger.info('All blueprints registered successfully')
 
@@ -154,7 +152,6 @@ def init_schedulers(app):
     
     from apscheduler.schedulers.background import BackgroundScheduler
     from app.services.escalation_service import EscalationService
-    from app.services.analytics_service import AnalyticsService
     
     scheduler = BackgroundScheduler(timezone=app.config.get('SCHEDULER_TIMEZONE', 'UTC'))
     
@@ -168,15 +165,21 @@ def init_schedulers(app):
         replace_existing=True
     )
     
-    scheduler.add_job(
-        func=lambda: AnalyticsService.calculate_daily_statistics(),
-        trigger='cron',
-        hour=0,
-        minute=0,
-        id='daily_stats',
-        name='Calculate daily statistics',
-        replace_existing=True
-    )
+    if app.config.get('ML_RETRAINING_ENABLED', False):
+        from app.services.retraining_service import RetrainingService
+
+        def run_retraining_check():
+            with app.app_context():
+                RetrainingService.check_and_retrain()
+
+        scheduler.add_job(
+            func=run_retraining_check,
+            trigger='interval',
+            hours=app.config.get('ML_RETRAINING_INTERVAL_HOURS', 1),
+            id='ml_priority_retraining',
+            name='Retrain complaint priority model',
+            replace_existing=True,
+        )
     
     scheduler.start()
     app.logger.info('Background schedulers initialized')

@@ -82,6 +82,10 @@ class Config:
     # Scheduler Configuration
     SCHEDULER_ENABLED = True
     SCHEDULER_TIMEZONE = 'Asia/Kolkata'
+    ML_RETRAINING_ENABLED = os.getenv('ML_RETRAINING_ENABLED', 'false').lower() == 'true'
+    ML_RETRAINING_INTERVAL_HOURS = int(os.getenv('ML_RETRAINING_INTERVAL_HOURS', '1'))
+    ML_RETRAINING_BATCH_SIZE = int(os.getenv('ML_RETRAINING_BATCH_SIZE', '10'))
+    ML_RETRAINING_DELAY_HOURS = int(os.getenv('ML_RETRAINING_DELAY_HOURS', '24'))
 
     # Complaint Escalation Settings
     ESCALATION_CHECK_INTERVAL_MINUTES = 60
