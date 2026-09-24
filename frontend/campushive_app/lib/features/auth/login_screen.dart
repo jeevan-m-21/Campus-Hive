@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../app/routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -7,6 +9,8 @@ import '../../core/theme/app_dimensions.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_text_field.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 import 'auth_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -41,12 +45,37 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _errorMessage = 'Authentication will be connected in a later step.';
-    });
+    try {
+      final session = await context.read<AuthProvider>().login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        identifier: _identifierController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage =
+            'Signed in as ${session.role}. The dashboard is not available yet.';
+      });
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _firebaseErrorMessage(error.code);
+      });
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Unable to sign in. Please check your connection.';
+      });
+    }
   }
 
   @override
@@ -135,5 +164,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _required(String? value, String label) {
     return value == null || value.trim().isEmpty ? '$label is required' : null;
+  }
+
+  String _firebaseErrorMessage(String code) {
+    switch (code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return 'Incorrect email or password.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'Unable to sign in. Please check your connection.';
+      default:
+        return 'Unable to sign in. Please try again.';
+    }
   }
 }

@@ -76,6 +76,7 @@ def login():
         result = AuthService.login_user(
             id_token,
             fcm_token=payload.get('fcm_token'),
+            usn_or_employee_id=payload.get('usn_or_employee_id'),
         )
     except AuthServiceError as error:
         return _handle_auth_error(error)
