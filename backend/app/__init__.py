@@ -91,6 +91,12 @@ def register_blueprints(app):
     app.register_blueprint(lf_bp, url_prefix=f'{api_prefix}/lost-found')
     app.register_blueprint(notif_bp, url_prefix=f'{api_prefix}/notifications')
     app.register_blueprint(announcement_bp, url_prefix=f'{api_prefix}/announcements')
+
+    from flask import send_from_directory
+
+    @app.route('/uploads/<path:filename>')
+    def serve_uploads(filename):
+        return send_from_directory(app.config.get('UPLOAD_FOLDER', './uploads'), filename)
     
     app.logger.info('All blueprints registered successfully')
 

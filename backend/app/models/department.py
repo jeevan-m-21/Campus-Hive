@@ -28,5 +28,13 @@ class Department(BaseModel, CreatedAtMixin):
         lazy=True
     )
 
+    def to_dict(self):
+        return {
+            "department_id": self.department_id,
+            "organization_id": self.organization_id,
+            "department_name": self.department_name,
+            "description": self.description,
+        }
+
     def __repr__(self):
         return f'<Department {self.department_name}>'

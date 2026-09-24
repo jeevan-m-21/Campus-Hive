@@ -1,0 +1,29 @@
+name: campushive_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  firebase_auth: ^6.7.0
+  firebase_core: ^4.15.0
+  flutter:
+    sdk: flutter
+  flutter_secure_storage: ^11.2.0
+  go_router: ^17.5.0
+  http: ^1.6.0
+  image_picker: ^1.2.3
+  provider: ^6.1.5+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logos/campus_hive_logo.png
+    - assets/logos/campus_hive_header_logo.png

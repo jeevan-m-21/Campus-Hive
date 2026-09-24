@@ -92,6 +92,10 @@ def list_lost_found():
 
     query = LostFound.query.filter_by(organization_id=g.current_user.organization_id)
 
+    mine = request.args.get('mine')
+    if mine and mine.strip().lower() in ('true', '1', 'yes'):
+        query = query.filter_by(posted_by=g.current_user.user_id)
+
     status = request.args.get('status')
     if status:
         normalized_status = _normalize_value(status)
@@ -169,7 +173,17 @@ def create_lost_found():
         status='OPEN',
     )
 
+    image_url = (payload.get('image_url') or '').strip()
+
     db.session.add(item)
+    db.session.flush()
+
+    if image_url:
+        image = LostFoundImage(
+            item_id=item.item_id,
+            image_url=image_url,
+        )
+        db.session.add(image)
 
     try:
         db.session.commit()

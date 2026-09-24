@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "318085072290",
+    "project_id": "campushive-61b45",
+    "storage_bucket": "campushive-61b45.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:318085072290:android:78a802cdd870c487eb9efb",
+        "android_client_info": {
+          "package_name": "com.example.campushive_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFU44MEkq_UhQiB2V_Xf5bqp4sFElOx2c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

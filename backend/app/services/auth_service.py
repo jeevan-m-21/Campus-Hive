@@ -338,7 +338,12 @@ class AuthService:
         }
 
     @staticmethod
-    def login_user(id_token: str, *, fcm_token: Optional[str] = None) -> Dict[str, Any]:
+    def login_user(
+        id_token: str,
+        *,
+        fcm_token: Optional[str] = None,
+        usn_or_employee_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Authenticate an existing user using Firebase and sync login metadata."""
 
         claims = AuthService.verify_firebase_token(id_token)
@@ -350,6 +355,18 @@ class AuthService:
 
         if not user.is_active:
             raise AuthorizationError('User account is inactive.')
+
+        if usn_or_employee_id is not None:
+            stored_identifier = user.usn_or_employee_id
+            if (
+                stored_identifier is None
+                or str(stored_identifier).strip().casefold()
+                != str(usn_or_employee_id).strip().casefold()
+            ):
+                raise AuthenticationError(
+                    'Invalid USN or employee ID.',
+                    error_code='invalid_identifier',
+                )
 
         user.last_login = datetime.utcnow()
         if fcm_token is not None:

@@ -39,6 +39,7 @@ class ComplaintChat(BaseModel):
             "message_id": self.message_id,
             "complaint_id": self.complaint_id,
             "sender_id": self.sender_id,
+            "sender_name": self.sender_user.full_name if self.sender_user else None,
             "message": self.message,
             "image_url": self.image_url,
             "sent_at": self.sent_at.isoformat() if self.sent_at else None,
