@@ -8,8 +8,12 @@ import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_card.dart';
 import '../../providers/complaint_provider.dart';
+import 'complaints/student_complaints_screen.dart';
 import 'home/student_dashboard_screen.dart';
+import 'lost_found/lost_found_screen.dart';
+import 'announcements/announcements_screen.dart';
 import 'profile/student_profile_screen.dart';
+import 'widgets/student_app_bar.dart';
 
 class StudentShellScreen extends StatelessWidget {
   const StudentShellScreen({required this.selectedIndex, super.key});
@@ -25,18 +29,9 @@ class StudentShellScreen extends StatelessWidget {
           index: selectedIndex,
           children: const [
             StudentDashboardScreen(),
-            StudentPlaceholderScreen(
-              title: 'Complaints',
-              icon: Icons.assignment_outlined,
-            ),
-            StudentPlaceholderScreen(
-              title: 'Lost & Found',
-              icon: Icons.search_outlined,
-            ),
-            StudentPlaceholderScreen(
-              title: 'Announcements',
-              icon: Icons.campaign_outlined,
-            ),
+            StudentComplaintsScreen(),
+            LostFoundScreen(),
+            AnnouncementsScreen(),
             StudentProfileScreen(),
           ],
         ),
@@ -131,7 +126,7 @@ class StudentPlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('CampusHive')),
+      appBar: const StudentAppBar(),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),

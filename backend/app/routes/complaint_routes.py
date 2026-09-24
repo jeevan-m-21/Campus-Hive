@@ -1,12 +1,12 @@
-"""Complaint management routes for CampusHive."""
-
+import os
+import uuid
 from datetime import datetime
 
-from flask import Blueprint, g, request
+from flask import Blueprint, current_app, g, request
 
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
-from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintStatusHistory, Department, User
+from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintImage, ComplaintStatusHistory, Department, User
 from app.services.notification_service import NotificationService, NotificationServiceError
 from app.services.priority_service import PriorityService
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
@@ -58,6 +58,49 @@ def _recalculate_support_count(complaint):
     ).count()
 
 
+@complaint_bp.route('/departments', methods=['GET'])
+@firebase_login_required
+def get_complaint_departments():
+    """Get service departments for the current user's organization."""
+    departments = Department.query.filter_by(
+        organization_id=g.current_user.organization_id
+    ).order_by(Department.department_name.asc()).all()
+
+    return success_response(
+        [department.to_dict() for department in departments],
+        'Departments fetched successfully',
+        200,
+    )
+
+
+@complaint_bp.route('/upload-image', methods=['POST'])
+@firebase_login_required
+@role_required()
+def upload_complaint_image():
+    """Upload an image for a complaint."""
+    if 'image' not in request.files and 'file' not in request.files:
+        return error_response('validation_error', 'No image file provided', 400)
+
+    file = request.files.get('image') or request.files.get('file')
+    if not file or file.filename == '':
+        return error_response('validation_error', 'No image selected', 400)
+
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    allowed = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+    if ext not in allowed:
+        return error_response('validation_error', f'File type not allowed. Allowed: {", ".join(allowed)}', 400)
+
+    upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'complaints')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+
+    image_url = f"/uploads/complaints/{filename}"
+    return success_response({'image_url': image_url}, 'Image uploaded successfully', 201)
+
+
 @complaint_bp.route('', methods=['POST'])
 @firebase_login_required
 @role_required()
@@ -73,6 +116,7 @@ def create_complaint():
     title = (payload.get('title') or '').strip()
     description = (payload.get('description') or '').strip()
     location = payload.get('location')
+    image_url = (payload.get('image_url') or '').strip() or None
 
     if department_id in (None, ''):
         return error_response('validation_error', 'department_id is required', 400)
@@ -123,6 +167,12 @@ def create_complaint():
 
     try:
         db.session.flush()
+        if image_url:
+            complaint_image = ComplaintImage(
+                complaint_id=complaint.complaint_id,
+                image_url=image_url,
+            )
+            db.session.add(complaint_image)
         complaint.support_count = 0
         PriorityService.update_complaint_priority(complaint, recalculate_ml=True)
 
@@ -164,10 +214,12 @@ def list_complaints():
 
     query = Complaint.query.filter_by(organization_id=g.current_user.organization_id)
 
-    if g.current_user.role.upper() == 'STUDENT':
-        query = query.filter_by(student_id=g.current_user.user_id)
-    elif g.current_user.role.upper() == 'SUPERVISOR':
+    if g.current_user.role.upper() == 'SUPERVISOR':
         query = query.filter_by(supervisor_id=g.current_user.user_id)
+
+    mine = request.args.get('mine')
+    if mine and mine.strip().lower() in ('true', '1', 'yes'):
+        query = query.filter_by(student_id=g.current_user.user_id)
 
     status = request.args.get('status')
     if status:
@@ -209,8 +261,6 @@ def get_complaint(complaint_id):
     if error:
         return error
 
-    if g.current_user.role.upper() == 'STUDENT' and complaint.student_id != g.current_user.user_id:
-        return error_response('forbidden', 'You cannot access this complaint', 403)
     if g.current_user.role.upper() == 'SUPERVISOR' and complaint.supervisor_id not in (None, g.current_user.user_id):
         return error_response('forbidden', 'You cannot access this complaint', 403)
 

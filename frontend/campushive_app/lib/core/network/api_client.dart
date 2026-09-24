@@ -43,6 +43,24 @@ class ApiClient {
     return _decodeResponse(response);
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required String idToken,
+    required String filePath,
+    String fileField = 'image',
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+    );
+    request.headers['Authorization'] = 'Bearer $idToken';
+    request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    return _decodeResponse(response);
+  }
+
   Map<String, dynamic> _decodeResponse(http.Response response) {
     Map<String, dynamic> responseBody = <String, dynamic>{};
     try {

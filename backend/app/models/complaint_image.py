@@ -26,5 +26,13 @@ class ComplaintImage(BaseModel):
         db.Index('complaint_id', 'complaint_id'),
     )
 
+    def to_dict(self):
+        return {
+            "image_id": self.image_id,
+            "complaint_id": self.complaint_id,
+            "image_url": self.image_url,
+            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
+        }
+
     def __repr__(self):
         return f'<ComplaintImage {self.image_id}>'

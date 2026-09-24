@@ -13,6 +13,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../models/complaint.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/complaint_provider.dart';
+import '../widgets/student_app_bar.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -34,12 +35,7 @@ class _StudentDashboardView extends StatelessWidget {
     final imageUrl = _displayValue(user['profile_image']);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Image.asset(
-          'assets/logos/campus_hive_header_logo.png',
-          height: 36,
-          fit: BoxFit.contain,
-        ),
+      appBar: StudentAppBar(
         actions: [
           IconButton(
             tooltip: 'Sign out',
@@ -67,7 +63,10 @@ class _StudentDashboardView extends StatelessWidget {
                 imageUrl: imageUrl,
               ),
               const SizedBox(height: AppDimensions.spacingLarge),
-              _PrimaryActions(onUnavailable: () => _showUnavailable(context)),
+              _PrimaryActions(
+                onReportIssue: () => context.push(AppRoutes.studentReportIssue),
+                onUnavailable: () => _showUnavailable(context),
+              ),
               const SizedBox(height: AppDimensions.spacingLarge),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -77,7 +76,7 @@ class _StudentDashboardView extends StatelessWidget {
                     style: AppTextStyles.headingSmall,
                   ),
                   TextButton(
-                    onPressed: () => _showUnavailable(context),
+                    onPressed: () => context.go(AppRoutes.studentComplaints),
                     child: const Text('View all'),
                   ),
                 ],
@@ -168,22 +167,28 @@ class _GreetingCard extends StatelessWidget {
 }
 
 class _PrimaryActions extends StatelessWidget {
-  const _PrimaryActions({required this.onUnavailable});
+  const _PrimaryActions({
+    required this.onReportIssue,
+    required this.onUnavailable,
+  });
 
+  final VoidCallback onReportIssue;
   final VoidCallback onUnavailable;
 
   @override
   Widget build(BuildContext context) {
     final actions = [
-      _ActionData('Report New Issue', Icons.add_task_outlined),
-      _ActionData('Lost & Found', Icons.search_outlined),
+      _ActionData('Report New Issue', Icons.add_task_outlined, onReportIssue),
+      _ActionData(
+        'Lost & Found',
+        Icons.search_outlined,
+        () => context.go(AppRoutes.studentLostFound),
+      ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
         final buttons = actions
-            .map(
-              (action) => _ActionButton(data: action, onPressed: onUnavailable),
-            )
+            .map((action) => _ActionButton(data: action))
             .toList();
         if (constraints.maxWidth < 520) {
           return Column(
@@ -219,24 +224,24 @@ class _PrimaryActions extends StatelessWidget {
 }
 
 class _ActionData {
-  const _ActionData(this.label, this.icon);
+  const _ActionData(this.label, this.icon, this.onPressed);
 
   final String label;
   final IconData icon;
+  final VoidCallback onPressed;
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.data, required this.onPressed});
+  const _ActionButton({required this.data});
 
   final _ActionData data;
-  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return AppButton(
       label: data.label,
       icon: data.icon,
-      onPressed: onPressed,
+      onPressed: data.onPressed,
       expand: true,
     );
   }
@@ -262,7 +267,7 @@ class _ComplaintsSection extends StatelessWidget {
     if (provider.complaints.isEmpty) {
       return const EmptyState(
         title: 'No complaints yet',
-        message: 'Your submitted complaints will appear here.',
+        message: 'Campus complaints will appear here.',
         icon: Icons.assignment_outlined,
       );
     }
@@ -290,6 +295,8 @@ class _ComplaintCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      onTap: () =>
+          context.push(AppRoutes.studentComplaintDetail(complaint.complaintId)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

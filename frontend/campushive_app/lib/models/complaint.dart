@@ -19,6 +19,7 @@ class Complaint {
     required this.updatedAt,
     required this.studentName,
     required this.departmentName,
+    this.imageUrl,
   });
 
   final int complaintId;
@@ -29,6 +30,7 @@ class Complaint {
   final String title;
   final String description;
   final String? location;
+  final String? imageUrl;
   final String? mlPriority;
   final String? finalPriority;
   final String status;
@@ -51,6 +53,7 @@ class Complaint {
       title: _string(json['title']),
       description: _string(json['description']),
       location: _nullableString(json['location']),
+      imageUrl: _nullableString(json['image_url']),
       mlPriority: _nullableString(json['ml_priority']),
       finalPriority: _nullableString(json['final_priority']),
       status: _string(json['status']),

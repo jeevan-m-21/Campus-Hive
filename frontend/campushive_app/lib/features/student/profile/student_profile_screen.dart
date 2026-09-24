@@ -11,7 +11,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../providers/auth_provider.dart';
-import '../student_activity_metrics.dart';
+import '../widgets/student_app_bar.dart';
 
 class StudentProfileScreen extends StatelessWidget {
   const StudentProfileScreen({super.key});
@@ -22,7 +22,7 @@ class StudentProfileScreen extends StatelessWidget {
     final user = session?.user ?? const <String, dynamic>{};
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: const StudentAppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),
@@ -33,7 +33,7 @@ class StudentProfileScreen extends StatelessWidget {
             const SizedBox(height: AppDimensions.spacingLarge),
             const Text('Your activity', style: AppTextStyles.headingSmall),
             const SizedBox(height: AppDimensions.spacingSmall),
-            const StudentActivityMetrics(),
+            const _ActivityOptions(),
             const SizedBox(height: AppDimensions.spacingLarge),
             _ProfileActions(user: user),
           ],
@@ -157,6 +157,59 @@ class _DetailRow extends StatelessWidget {
             _value(detail.value),
             textAlign: TextAlign.end,
             style: AppTextStyles.bodyMedium,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActivityOptions extends StatelessWidget {
+  const _ActivityOptions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: AppCard(
+            onTap: () => context.push(AppRoutes.studentMyComplaints),
+            child: Column(
+              children: const [
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 30,
+                  color: AppColors.primary,
+                ),
+                SizedBox(height: AppDimensions.spacingSmall),
+                Text('My Complaints', style: AppTextStyles.label),
+                SizedBox(height: 2),
+                Text(
+                  'View & track',
+                  style: AppTextStyles.caption,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: AppDimensions.spacingMedium),
+        Expanded(
+          child: AppCard(
+            onTap: () => context.push(AppRoutes.studentMyLostFound),
+            child: Column(
+              children: const [
+                Icon(Icons.search_outlined, size: 30, color: AppColors.info),
+                SizedBox(height: AppDimensions.spacingSmall),
+                Text('My Lost & Found', style: AppTextStyles.label),
+                SizedBox(height: 2),
+                Text(
+                  'Manage posts',
+                  style: AppTextStyles.caption,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ],

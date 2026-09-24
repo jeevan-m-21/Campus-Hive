@@ -78,6 +78,8 @@ class Complaint(BaseModel, TimestampMixin):
             "title": self.title,
             "description": self.description,
             "location": self.location,
+            "image_url": self.images[0].image_url if self.images else None,
+            "images": [img.to_dict() for img in self.images] if self.images else [],
             "ml_priority": self.ml_priority,
             "final_priority": self.final_priority,
             "status": self.status,
