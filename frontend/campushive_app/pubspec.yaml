@@ -26,3 +26,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logos/campus_hive_logo.png
+    - assets/logos/campus_hive_header_logo.png

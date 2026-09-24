@@ -18,12 +18,7 @@ class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ComplaintProvider()..loadComplaints(),
-      child: const _StudentDashboardView(),
-    );
-  }
+  Widget build(BuildContext context) => const _StudentDashboardView();
 }
 
 class _StudentDashboardView extends StatelessWidget {
@@ -31,15 +26,20 @@ class _StudentDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authSession = context.watch<AuthProvider>().session;
-    final user = authSession?.user ?? const <String, dynamic>{};
+    final user =
+        context.watch<AuthProvider>().session?.user ??
+        const <String, dynamic>{};
     final name = _displayValue(user['full_name']);
     final identifier = _displayValue(user['usn_or_employee_id']);
     final imageUrl = _displayValue(user['profile_image']);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CampusHive'),
+        title: Image.asset(
+          'assets/logos/campus_hive_header_logo.png',
+          height: 36,
+          fit: BoxFit.contain,
+        ),
         actions: [
           IconButton(
             tooltip: 'Sign out',
@@ -68,10 +68,6 @@ class _StudentDashboardView extends StatelessWidget {
               ),
               const SizedBox(height: AppDimensions.spacingLarge),
               _PrimaryActions(onUnavailable: () => _showUnavailable(context)),
-              const SizedBox(height: AppDimensions.spacingLarge),
-              const Text('Your activity', style: AppTextStyles.headingSmall),
-              const SizedBox(height: AppDimensions.spacingSmall),
-              const _MetricsGrid(),
               const SizedBox(height: AppDimensions.spacingLarge),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -124,7 +120,20 @@ class _GreetingCard extends StatelessWidget {
     return AppCard(
       child: Row(
         children: [
-          _ProfileImage(imageUrl: imageUrl),
+          imageUrl.isEmpty
+              ? const CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.divider,
+                  child: Icon(
+                    Icons.person_outline,
+                    color: AppColors.textSecondary,
+                  ),
+                )
+              : CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.divider,
+                  backgroundImage: NetworkImage(imageUrl),
+                ),
           const SizedBox(width: AppDimensions.spacingMedium),
           Expanded(
             child: Column(
@@ -158,28 +167,6 @@ class _GreetingCard extends StatelessWidget {
   }
 }
 
-class _ProfileImage extends StatelessWidget {
-  const _ProfileImage({required this.imageUrl});
-
-  final String imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 28,
-        backgroundColor: AppColors.divider,
-        backgroundImage: NetworkImage(imageUrl),
-      );
-    }
-    return const CircleAvatar(
-      radius: 28,
-      backgroundColor: AppColors.divider,
-      child: Icon(Icons.person_outline, color: AppColors.textSecondary),
-    );
-  }
-}
-
 class _PrimaryActions extends StatelessWidget {
   const _PrimaryActions({required this.onUnavailable});
 
@@ -187,43 +174,40 @@ class _PrimaryActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final actions = [
+      _ActionData('Report New Issue', Icons.add_task_outlined),
+      _ActionData('Lost & Found', Icons.search_outlined),
+    ];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final actions = [
-          _ActionData(
-            label: 'Report New Issue',
-            icon: Icons.add_task_outlined,
-            onPressed: onUnavailable,
-          ),
-          _ActionData(
-            label: 'Lost & Found',
-            icon: Icons.search_outlined,
-            onPressed: onUnavailable,
-          ),
-        ];
+        final buttons = actions
+            .map(
+              (action) => _ActionButton(data: action, onPressed: onUnavailable),
+            )
+            .toList();
         if (constraints.maxWidth < 520) {
           return Column(
-            children: actions
+            children: buttons
                 .map(
-                  (action) => Padding(
+                  (button) => Padding(
                     padding: const EdgeInsets.only(
                       bottom: AppDimensions.spacingSmall,
                     ),
-                    child: _ActionButton(data: action),
+                    child: button,
                   ),
                 )
                 .toList(),
           );
         }
         return Row(
-          children: actions
+          children: buttons
               .map(
-                (action) => Expanded(
+                (button) => Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(
                       right: AppDimensions.spacingSmall,
                     ),
-                    child: _ActionButton(data: action),
+                    child: button,
                   ),
                 ),
               )
@@ -235,126 +219,25 @@ class _PrimaryActions extends StatelessWidget {
 }
 
 class _ActionData {
-  const _ActionData({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
+  const _ActionData(this.label, this.icon);
 
   final String label;
   final IconData icon;
-  final VoidCallback onPressed;
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.data});
+  const _ActionButton({required this.data, required this.onPressed});
 
   final _ActionData data;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return AppButton(
       label: data.label,
       icon: data.icon,
-      onPressed: data.onPressed,
+      onPressed: onPressed,
       expand: true,
-    );
-  }
-}
-
-class _MetricsGrid extends StatelessWidget {
-  const _MetricsGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ComplaintProvider>();
-    final metrics = [
-      _MetricData(
-        'Total',
-        provider.totalCount,
-        Icons.inbox_outlined,
-        AppColors.info,
-      ),
-      _MetricData(
-        'Active',
-        provider.activeCount,
-        Icons.pending_actions_outlined,
-        AppColors.warning,
-      ),
-      _MetricData(
-        'In progress',
-        provider.inProgressCount,
-        Icons.sync_outlined,
-        AppColors.primary,
-      ),
-      _MetricData(
-        'Resolved',
-        provider.resolvedCount,
-        Icons.check_circle_outline,
-        AppColors.success,
-      ),
-      _MetricData(
-        'Support',
-        provider.supportCount,
-        Icons.favorite_border,
-        AppColors.error,
-      ),
-    ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 620
-            ? 5
-            : constraints.maxWidth >= 360
-            ? 3
-            : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: metrics.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: AppDimensions.spacingSmall,
-            mainAxisSpacing: AppDimensions.spacingSmall,
-            childAspectRatio: 1.45,
-          ),
-          itemBuilder: (context, index) => _MetricCard(data: metrics[index]),
-        );
-      },
-    );
-  }
-}
-
-class _MetricData {
-  const _MetricData(this.label, this.value, this.icon, this.color);
-
-  final String label;
-  final int value;
-  final IconData icon;
-  final Color color;
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.data});
-
-  final _MetricData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.all(AppDimensions.spacingSmall),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(data.icon, color: data.color, size: AppDimensions.iconMedium),
-          const SizedBox(height: 4),
-          Text('${data.value}', style: AppTextStyles.headingSmall),
-          Text(
-            data.label,
-            style: AppTextStyles.caption,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }
@@ -460,7 +343,7 @@ class _ComplaintCard extends StatelessWidget {
                   color: AppColors.warning,
                 ),
               const Spacer(),
-              Icon(
+              const Icon(
                 Icons.favorite_border,
                 size: AppDimensions.iconSmall,
                 color: AppColors.textSecondary,
