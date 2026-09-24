@@ -10,6 +10,22 @@ class ApiClient {
 
   final http.Client _client;
 
+  Future<Map<String, dynamic>> get(
+    String path, {
+    required String idToken,
+    Map<String, String>? queryParameters,
+  }) async {
+    final uri = Uri.parse(
+      '${AppConstants.apiBaseUrl}$path',
+    ).replace(queryParameters: queryParameters);
+    final response = await _client.get(
+      uri,
+      headers: {'Authorization': 'Bearer $idToken'},
+    );
+
+    return _decodeResponse(response);
+  }
+
   Future<Map<String, dynamic>> post(
     String path, {
     required String idToken,
@@ -24,6 +40,10 @@ class ApiClient {
       body: jsonEncode(body),
     );
 
+    return _decodeResponse(response);
+  }
+
+  Map<String, dynamic> _decodeResponse(http.Response response) {
     Map<String, dynamic> responseBody = <String, dynamic>{};
     try {
       final decoded = jsonDecode(response.body);

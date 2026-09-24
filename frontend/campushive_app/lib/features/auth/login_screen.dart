@@ -52,11 +52,15 @@ class _LoginScreenState extends State<LoginScreen> {
         identifier: _identifierController.text.trim(),
       );
       if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _errorMessage =
-            'Signed in as ${session.role}. The dashboard is not available yet.';
-      });
+      setState(() => _isLoading = false);
+      if (session.role.toUpperCase() == 'STUDENT') {
+        context.go(AppRoutes.studentDashboard);
+      } else {
+        setState(
+          () => _errorMessage =
+              'Signed in as ${session.role}. This dashboard is not available yet.',
+        );
+      }
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
       setState(() {
