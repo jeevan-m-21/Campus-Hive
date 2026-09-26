@@ -1,3 +1,3 @@
 abstract final class AppConstants {
-  static const apiBaseUrl = 'http://10.82.245.76:5000/api/v1';
+  static const String apiBaseUrl = 'http://127.0.0.1:5000/api/v1';
 }

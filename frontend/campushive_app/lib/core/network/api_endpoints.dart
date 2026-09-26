@@ -16,4 +16,7 @@ abstract final class ApiEndpoints {
 
   static String addComplaintComment(int complaintId) =>
       '$complaints/$complaintId/comments';
+
+  static String likeAnnouncement(int announcementId) =>
+      '$announcements/$announcementId/like';
 }

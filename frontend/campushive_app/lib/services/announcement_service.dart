@@ -64,6 +64,34 @@ class AnnouncementService {
     }
   }
 
+  Future<({bool isLiked, int likeCount})> toggleLike(int announcementId) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.likeAnnouncement(announcementId),
+        idToken: token,
+        body: const {},
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AnnouncementException('Invalid response from server.');
+      }
+      return (
+        isLiked: data['is_liked'] == true,
+        likeCount: _int(data['like_count'], 0),
+      );
+    } on ApiException catch (error) {
+      throw AnnouncementException(error.message);
+    }
+  }
+
   static int _int(Object? value, int fallback) =>
       value is num ? value.toInt() : fallback;
 }

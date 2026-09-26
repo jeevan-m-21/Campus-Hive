@@ -20,6 +20,7 @@ class Complaint {
     required this.studentName,
     required this.departmentName,
     this.imageUrl,
+    this.isSupported = false,
   });
 
   final int complaintId;
@@ -35,6 +36,7 @@ class Complaint {
   final String? finalPriority;
   final String status;
   final int supportCount;
+  final bool isSupported;
   final DateTime? deadline;
   final DateTime? resolvedAt;
   final String? studentFeedback;
@@ -58,6 +60,7 @@ class Complaint {
       finalPriority: _nullableString(json['final_priority']),
       status: _string(json['status']),
       supportCount: _int(json['support_count']),
+      isSupported: json['is_supported'] == true,
       deadline: _date(json['deadline']),
       resolvedAt: _date(json['resolved_at']),
       studentFeedback: _nullableString(json['student_feedback']),

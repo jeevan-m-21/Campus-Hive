@@ -64,6 +64,37 @@ class AnnouncementProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> toggleLike(int announcementId) async {
+    try {
+      final result = await _service.toggleLike(announcementId);
+      final index = _items.indexWhere(
+        (a) => a.announcementId == announcementId,
+      );
+      if (index >= 0) {
+        final current = _items[index];
+        _items = [
+          ..._items.sublist(0, index),
+          Announcement(
+            announcementId: current.announcementId,
+            organizationId: current.organizationId,
+            createdBy: current.createdBy,
+            title: current.title,
+            description: current.description,
+            attachmentUrl: current.attachmentUrl,
+            attachmentType: current.attachmentType,
+            isImportant: current.isImportant,
+            likeCount: result.likeCount,
+            isLiked: result.isLiked,
+            createdAt: current.createdAt,
+            updatedAt: current.updatedAt,
+          ),
+          ..._items.sublist(index + 1),
+        ];
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
   Future<AnnouncementPage> _fetch(int page) => _service.fetchAnnouncements(
     page: page,
     perPage: 20,

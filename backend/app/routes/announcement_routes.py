@@ -4,7 +4,7 @@ from flask import Blueprint, current_app, g, request
 
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
-from app.models import Announcement, User
+from app.models import Announcement, AnnouncementLike, User
 from app.services.notification_service import NotificationService, NotificationServiceError
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
@@ -54,9 +54,28 @@ def _normalize_attachment_type(value):
     return normalized
 
 
-def _serialize_announcement_dict(announcement_data):
+def _serialize_announcement_dict(announcement_data, current_user_id=None):
     announcement_data['attachment_type'] = announcement_data.get('attachment_type') or 'NONE'
     announcement_data['is_important'] = bool(announcement_data.get('is_important'))
+    aid = announcement_data.get('announcement_id')
+    if aid:
+        announcement_data['like_count'] = AnnouncementLike.query.filter_by(
+            announcement_id=aid
+        ).count()
+        if current_user_id is None and hasattr(g, 'current_user') and g.current_user:
+            current_user_id = g.current_user.user_id
+        if current_user_id:
+            announcement_data['is_liked'] = (
+                AnnouncementLike.query.filter_by(
+                    announcement_id=aid,
+                    user_id=current_user_id,
+                ).first() is not None
+            )
+        else:
+            announcement_data['is_liked'] = False
+    else:
+        announcement_data['like_count'] = 0
+        announcement_data['is_liked'] = False
     return announcement_data
 
 
@@ -325,3 +344,52 @@ def delete_announcement(announcement_id):
         return error_response('database_error', 'Database failure while deleting announcement', 500)
 
     return success_response({}, 'Announcement deleted successfully', 200)
+
+
+@announcement_bp.route('/<int:announcement_id>/like', methods=['POST'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPERVISOR', 'STUDENT')
+def toggle_announcement_like(announcement_id):
+    """Toggle like/unlike on an announcement."""
+    announcement, error = _get_announcement_or_404(announcement_id)
+    if error:
+        return error
+
+    existing_like = AnnouncementLike.query.filter_by(
+        announcement_id=announcement.announcement_id,
+        user_id=g.current_user.user_id,
+    ).first()
+
+    if existing_like:
+        db.session.delete(existing_like)
+        is_liked = False
+        message = 'Announcement unliked'
+    else:
+        new_like = AnnouncementLike(
+            announcement_id=announcement.announcement_id,
+            user_id=g.current_user.user_id,
+        )
+        db.session.add(new_like)
+        is_liked = True
+        message = 'Announcement liked'
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    like_count = AnnouncementLike.query.filter_by(
+        announcement_id=announcement.announcement_id,
+    ).count()
+
+    return success_response(
+        {
+            'announcement_id': announcement.announcement_id,
+            'is_liked': is_liked,
+            'like_count': like_count,
+        },
+        message,
+        200,
+    )
+

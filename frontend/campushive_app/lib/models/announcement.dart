@@ -10,6 +10,8 @@ class Announcement {
     required this.isImportant,
     required this.createdAt,
     required this.updatedAt,
+    this.likeCount = 0,
+    this.isLiked = false,
   });
 
   final int announcementId;
@@ -20,6 +22,8 @@ class Announcement {
   final String? attachmentUrl;
   final String attachmentType;
   final bool isImportant;
+  final int likeCount;
+  final bool isLiked;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -33,6 +37,8 @@ class Announcement {
       attachmentUrl: _stringOrNull(json['attachment_url']),
       attachmentType: json['attachment_type']?.toString() ?? 'NONE',
       isImportant: json['is_important'] == true,
+      likeCount: _int(json['like_count']),
+      isLiked: json['is_liked'] == true,
       createdAt: _date(json['created_at']),
       updatedAt: _date(json['updated_at']),
     );
