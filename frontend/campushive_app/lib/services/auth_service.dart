@@ -87,13 +87,17 @@ class AuthService {
       return 'Invalid USN or employee ID.';
     }
     if (error.statusCode == 403) {
-      return error.message.isNotEmpty ? error.message : 'This account is not authorized.';
+      return error.message.isNotEmpty
+          ? error.message
+          : 'This account is not authorized.';
     }
     if (error.statusCode >= 500) {
       return 'CampusHive is temporarily unavailable.';
     }
     if (error.statusCode == 401) {
-      return error.message.isNotEmpty ? error.message : 'Authentication failed. Please try again.';
+      return error.message.isNotEmpty
+          ? error.message
+          : 'Authentication failed. Please try again.';
     }
     if (error.message.isNotEmpty && error.message != 'Request failed.') {
       return error.message;

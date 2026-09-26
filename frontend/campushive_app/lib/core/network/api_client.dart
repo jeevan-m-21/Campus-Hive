@@ -43,6 +43,40 @@ class ApiClient {
     return _decodeResponse(response);
   }
 
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    required String idToken,
+    required Map<String, dynamic> body,
+  }) async {
+    final response = await _client.patch(
+      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+      headers: {
+        'Authorization': 'Bearer $idToken',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    return _decodeResponse(response);
+  }
+
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    required String idToken,
+    Map<String, dynamic>? body,
+  }) async {
+    final response = await _client.delete(
+      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+      headers: {
+        'Authorization': 'Bearer $idToken',
+        if (body != null) 'Content-Type': 'application/json',
+      },
+      body: body != null ? jsonEncode(body) : null,
+    );
+
+    return _decodeResponse(response);
+  }
+
   Future<Map<String, dynamic>> postMultipart(
     String path, {
     required String idToken,
