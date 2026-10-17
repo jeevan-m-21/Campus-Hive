@@ -7,12 +7,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/complaint.dart';
 import '../../../providers/complaint_provider.dart';
+import '../home/widgets/feed_card_shell.dart';
 import '../widgets/student_app_bar.dart';
 
 class StudentComplaintsScreen extends StatefulWidget {
@@ -124,42 +124,26 @@ class _StudentComplaintsScreenState extends State<StudentComplaintsScreen> {
             ),
             const SizedBox(height: AppDimensions.spacingMedium),
             AppTextField(
-              controller: _searchController,
               label: 'Search complaints',
               hint: 'Search title, description, or location',
               prefixIcon: Icons.search_outlined,
-              onChanged: (value) => setState(() => _searchQuery = value),
-              suffixIcon: _searchQuery.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear search',
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                      icon: const Icon(Icons.clear),
-                    ),
-            ),
-            const SizedBox(height: AppDimensions.spacingMedium),
-            _FilterGroup(
-              label: 'Status',
-              values: _statuses,
-              selected: provider.statusFilter,
-              onSelected: (value) => provider.setFilters(
-                status: value,
-                priority: provider.priorityFilter,
-              ),
+              onChanged: (value) => setState(() => _searchQuery = value.trim()),
             ),
             const SizedBox(height: AppDimensions.spacingSmall),
-            _FilterGroup(
-              label: 'Priority',
+            _FilterRow(
+              title: 'Status',
+              values: _statuses,
+              selected: provider.statusFilter,
+              humanize: _statusLabel,
+              onSelected: (value) => provider.setFilters(status: value),
+            ),
+            const SizedBox(height: AppDimensions.spacingSmall),
+            _FilterRow(
+              title: 'Priority',
               values: _priorities,
               selected: provider.priorityFilter,
-              onSelected: (value) => provider.setFilters(
-                status: provider.statusFilter,
-                priority: value,
-              ),
               humanize: _priorityLabel,
+              onSelected: (value) => provider.setFilters(priority: value),
             ),
             const SizedBox(height: AppDimensions.spacingLarge),
             if (provider.isLoading && provider.complaints.isEmpty)
@@ -174,58 +158,29 @@ class _StudentComplaintsScreenState extends State<StudentComplaintsScreen> {
               )
             else if (complaints.isEmpty)
               EmptyState(
-                title:
-                    _searchQuery.isNotEmpty ||
-                        provider.statusFilter != null ||
-                        provider.priorityFilter != null
-                    ? 'No matching complaints'
-                    : 'No complaints yet',
-                message:
-                    _searchQuery.isNotEmpty ||
-                        provider.statusFilter != null ||
-                        provider.priorityFilter != null
-                    ? 'Try changing your search or filters.'
+                title: provider.isMineOnly
+                    ? 'No complaints found'
+                    : 'No complaints reported',
+                message: provider.isMineOnly
+                    ? 'Complaints you submit will appear here.'
                     : 'Campus complaints will appear here.',
                 icon: Icons.assignment_outlined,
               )
             else ...[
-              Text(
-                '${provider.total} complaint${provider.total == 1 ? '' : 's'}',
-                style: AppTextStyles.caption,
-              ),
-              const SizedBox(height: AppDimensions.spacingSmall),
               ...complaints.map(
                 (complaint) => Padding(
                   padding: const EdgeInsets.only(
-                    bottom: AppDimensions.spacingSmall,
+                    bottom: AppDimensions.spacingMedium,
                   ),
                   child: _ComplaintCard(complaint: complaint),
                 ),
               ),
               if (provider.hasNext)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: AppDimensions.spacingSmall,
-                  ),
-                  child: AppButton(
-                    label: provider.isLoadingPage ? 'Loading...' : 'Load more',
-                    icon: Icons.expand_more,
-                    isLoading: provider.isLoadingPage,
-                    onPressed: provider.loadNextPage,
-                    expand: true,
-                  ),
-                ),
-              if (provider.pages > 1)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: AppDimensions.spacingSmall,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Page ${provider.page} of ${provider.pages}',
-                      style: AppTextStyles.caption,
-                    ),
-                  ),
+                AppButton(
+                  label: provider.isLoadingPage ? 'Loading...' : 'Load more',
+                  isLoading: provider.isLoadingPage,
+                  onPressed: provider.loadNextPage,
+                  expand: true,
                 ),
             ],
           ],
@@ -235,36 +190,39 @@ class _StudentComplaintsScreenState extends State<StudentComplaintsScreen> {
   }
 
   bool _matchesSearch(Complaint complaint) {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return true;
-    return complaint.title.toLowerCase().contains(query) ||
-        complaint.description.toLowerCase().contains(query) ||
-        (complaint.location?.toLowerCase().contains(query) ?? false);
+    if (_searchQuery.isEmpty) return true;
+    final query = _searchQuery.toLowerCase();
+    final title = complaint.title.toLowerCase();
+    final description = complaint.description.toLowerCase();
+    final location = (complaint.location ?? '').toLowerCase();
+    return title.contains(query) ||
+        description.contains(query) ||
+        location.contains(query);
   }
 }
 
-class _FilterGroup extends StatelessWidget {
-  const _FilterGroup({
-    required this.label,
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.title,
     required this.values,
     required this.selected,
+    required this.humanize,
     required this.onSelected,
-    this.humanize = _statusLabel,
   });
 
-  final String label;
+  final String title;
   final List<String?> values;
   final String? selected;
-  final ValueChanged<String?> onSelected;
   final String Function(String) humanize;
+  final ValueChanged<String?> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.label),
-        const SizedBox(height: 4),
+        Text(title, style: AppTextStyles.label),
+        const SizedBox(height: 6),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -295,61 +253,77 @@ class _ComplaintCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ComplaintProvider>();
-    return AppCard(
+    final isSupported = provider.isComplaintSupported(complaint);
+
+    return FeedCardShell(
+      authorName: complaint.studentName?.isNotEmpty == true
+          ? complaint.studentName
+          : 'Student',
+      typeLabel: 'Complaint',
+      typeColor: AppColors.primary,
+      createdAt: complaint.createdAt,
+      fallbackIcon: Icons.person_outline,
       onTap: () =>
           context.push(AppRoutes.studentComplaintDetail(complaint.complaintId)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Text(complaint.title, style: AppTextStyles.headingSmall),
+          if (complaint.description.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              complaint.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall,
+            ),
+          ],
+          if (complaint.imageUrl != null && complaint.imageUrl!.isNotEmpty) ...[
+            const SizedBox(height: AppDimensions.spacingMedium),
+            FeedCardImage(imageUrl: complaint.imageUrl!),
+          ],
+          const SizedBox(height: AppDimensions.spacingMedium),
+          Wrap(
+            spacing: AppDimensions.spacingMedium,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text('#${complaint.complaintId}', style: AppTextStyles.caption),
-              const Spacer(),
-              _Badge(
+              if (complaint.departmentName != null &&
+                  complaint.departmentName!.isNotEmpty)
+                FeedChip(
+                  label: complaint.departmentName!,
+                  icon: Icons.apartment_outlined,
+                ),
+              if (complaint.location != null && complaint.location!.isNotEmpty)
+                FeedChip(
+                  label: complaint.location!,
+                  icon: Icons.location_on_outlined,
+                ),
+              if (complaint.deadline != null)
+                FeedChip(
+                  label: 'Due ${_date(complaint.deadline!)}',
+                  icon: Icons.event_outlined,
+                ),
+              if (complaint.finalPriority != null &&
+                  complaint.finalPriority!.isNotEmpty)
+                FeedBadge(
+                  label: _priorityLabel(complaint.finalPriority!),
+                  color: _priorityColor(complaint.finalPriority!),
+                ),
+              FeedBadge(
                 label: _statusLabel(complaint.status),
                 color: _statusColor(complaint.status),
               ),
             ],
           ),
-          const SizedBox(height: AppDimensions.spacingSmall),
-          Text(complaint.title, style: AppTextStyles.headingSmall),
-          const SizedBox(height: 4),
-          Text(
-            complaint.description,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: AppDimensions.spacingSmall),
-          Wrap(
-            spacing: AppDimensions.spacingMedium,
-            runSpacing: 4,
-            children: [
-              if (complaint.location != null)
-                _Metadata(Icons.location_on_outlined, complaint.location!),
-              if (complaint.departmentName != null)
-                _Metadata(Icons.apartment_outlined, complaint.departmentName!),
-              if (complaint.createdAt != null)
-                _Metadata(Icons.schedule_outlined, _date(complaint.createdAt!)),
-              if (complaint.deadline != null)
-                _Metadata(
-                  Icons.event_outlined,
-                  'Due ${_date(complaint.deadline!)}',
-                ),
-            ],
-          ),
+          const SizedBox(height: AppDimensions.spacingMedium),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: AppDimensions.spacingSmall),
           Row(
             children: [
-              if (complaint.finalPriority != null)
-                _Badge(
-                  label: _priorityLabel(complaint.finalPriority!),
-                  color: AppColors.warning,
-                ),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Support complaint',
-                onPressed: provider.isSupporting
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: provider.isSupporting
                     ? null
                     : () async {
                         final supported = await provider.supportComplaint(
@@ -363,55 +337,80 @@ class _ComplaintCard extends StatelessWidget {
                           ).showSnackBar(SnackBar(content: Text(message)));
                         }
                       },
-                icon: const Icon(Icons.favorite_border),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      if (provider.isSupporting)
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      else
+                        Icon(
+                          isSupported
+                              ? Icons.thumb_up_alt
+                              : Icons.thumb_up_alt_outlined,
+                          size: 19,
+                          color: isSupported
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                        ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${complaint.supportCount}',
+                        style: AppTextStyles.label.copyWith(
+                          fontWeight: isSupported
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: isSupported
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              Text('${complaint.supportCount}', style: AppTextStyles.caption),
+              const SizedBox(width: AppDimensions.spacingMedium),
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => context.push(
+                  AppRoutes.studentComplaintDetail(complaint.complaintId),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline,
+                        size: 19,
+                        color: AppColors.textSecondary,
+                      ),
+                      SizedBox(width: 6),
+                      Text('Comment', style: AppTextStyles.caption),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '#${complaint.complaintId}',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(label, style: AppTextStyles.caption.copyWith(color: color)),
-    );
-  }
-}
-
-class _Metadata extends StatelessWidget {
-  const _Metadata(this.icon, this.text);
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: AppDimensions.iconSmall,
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(width: 4),
-        Text(text, style: AppTextStyles.caption),
-      ],
     );
   }
 }
@@ -429,7 +428,7 @@ String _humanize(String value) => value
     .join(' ');
 
 Color _statusColor(String status) {
-  switch (status) {
+  switch (status.toUpperCase()) {
     case 'RESOLVED':
     case 'CLOSED':
       return AppColors.success;
@@ -439,6 +438,17 @@ Color _statusColor(String status) {
       return AppColors.primary;
     default:
       return AppColors.warning;
+  }
+}
+
+Color _priorityColor(String priority) {
+  switch (priority.toUpperCase()) {
+    case 'HIGH':
+      return AppColors.error;
+    case 'MEDIUM':
+      return AppColors.warning;
+    default:
+      return AppColors.textSecondary;
   }
 }
 

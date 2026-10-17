@@ -10,6 +10,7 @@ class AppButton extends StatelessWidget {
     this.icon,
     this.isLoading = false,
     this.expand = false,
+    this.padding,
     super.key,
   });
 
@@ -19,6 +20,7 @@ class AppButton extends StatelessWidget {
   final IconData? icon;
   final bool isLoading;
   final bool expand;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
@@ -30,25 +32,35 @@ class AppButton extends StatelessWidget {
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 18),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
               ],
-              Text(label),
+              Flexible(
+                child: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
+              ),
             ],
           );
 
     final button = switch (variant) {
       AppButtonVariant.primary => ElevatedButton(
+        style: padding != null
+            ? ElevatedButton.styleFrom(padding: padding)
+            : null,
         onPressed: isLoading ? null : onPressed,
         child: child,
       ),
       AppButtonVariant.outlined => OutlinedButton(
+        style: padding != null
+            ? OutlinedButton.styleFrom(padding: padding)
+            : null,
         onPressed: isLoading ? null : onPressed,
         child: child,
       ),
       AppButtonVariant.text => TextButton(
+        style: padding != null ? TextButton.styleFrom(padding: padding) : null,
         onPressed: isLoading ? null : onPressed,
         child: child,
       ),

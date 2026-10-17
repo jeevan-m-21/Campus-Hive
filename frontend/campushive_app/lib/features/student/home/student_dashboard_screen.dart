@@ -10,10 +10,14 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../models/complaint.dart';
+import '../../../models/feed_item.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../providers/complaint_provider.dart';
+import '../../../providers/home_feed_provider.dart';
 import '../widgets/student_app_bar.dart';
+import 'widgets/announcement_feed_card.dart';
+import 'widgets/complaint_feed_card.dart';
+import 'widgets/feed_card_shell.dart';
+import 'widgets/lost_found_feed_card.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -50,7 +54,7 @@ class _StudentDashboardView extends StatelessWidget {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>
-              context.read<ComplaintProvider>().loadComplaints(refresh: true),
+              context.read<HomeFeedProvider>().loadFeed(refresh: true),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(
@@ -65,24 +69,22 @@ class _StudentDashboardView extends StatelessWidget {
               const SizedBox(height: AppDimensions.spacingLarge),
               _PrimaryActions(
                 onReportIssue: () => context.push(AppRoutes.studentReportIssue),
-                onUnavailable: () => _showUnavailable(context),
               ),
               const SizedBox(height: AppDimensions.spacingLarge),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Recent complaints',
-                    style: AppTextStyles.headingSmall,
-                  ),
-                  TextButton(
-                    onPressed: () => context.go(AppRoutes.studentComplaints),
-                    child: const Text('View all'),
+                  const Text('Campus Feed', style: AppTextStyles.headingSmall),
+                  Text(
+                    'Last 7 days',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: AppDimensions.spacingSmall),
-              const _ComplaintsSection(),
+              const _HomeFeedSection(),
             ],
           ),
         ),
@@ -93,12 +95,6 @@ class _StudentDashboardView extends StatelessWidget {
   static String _displayValue(Object? value) {
     final text = value?.toString().trim();
     return text == null || text.isEmpty ? '' : text;
-  }
-
-  static void _showUnavailable(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('This destination is not available yet.')),
-    );
   }
 }
 
@@ -131,7 +127,7 @@ class _GreetingCard extends StatelessWidget {
               : CircleAvatar(
                   radius: 28,
                   backgroundColor: AppColors.divider,
-                  backgroundImage: NetworkImage(imageUrl),
+                  backgroundImage: NetworkImage(resolveImageUrl(imageUrl)),
                 ),
           const SizedBox(width: AppDimensions.spacingMedium),
           Expanded(
@@ -147,7 +143,7 @@ class _GreetingCard extends StatelessWidget {
                   Text(identifier, style: AppTextStyles.label),
                 const SizedBox(height: AppDimensions.spacingSmall),
                 const Text(
-                  'Keep up with your campus activity and support requests.',
+                  'Keep up with recent activity across your campus.',
                   style: AppTextStyles.bodySmall,
                 ),
               ],
@@ -167,13 +163,9 @@ class _GreetingCard extends StatelessWidget {
 }
 
 class _PrimaryActions extends StatelessWidget {
-  const _PrimaryActions({
-    required this.onReportIssue,
-    required this.onUnavailable,
-  });
+  const _PrimaryActions({required this.onReportIssue});
 
   final VoidCallback onReportIssue;
-  final VoidCallback onUnavailable;
 
   @override
   Widget build(BuildContext context) {
@@ -247,189 +239,50 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class _ComplaintsSection extends StatelessWidget {
-  const _ComplaintsSection();
+class _HomeFeedSection extends StatelessWidget {
+  const _HomeFeedSection();
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ComplaintProvider>();
-    if (provider.isLoading && provider.complaints.isEmpty) {
-      return const SizedBox(height: 180, child: AppLoader());
+    final feedProvider = context.watch<HomeFeedProvider>();
+
+    if (feedProvider.isLoading && feedProvider.isEmpty) {
+      return const SizedBox(height: 220, child: AppLoader());
     }
-    if (provider.errorMessage != null && provider.complaints.isEmpty) {
+
+    if (feedProvider.errorMessage != null && feedProvider.isEmpty) {
       return EmptyState(
-        title: 'Could not load complaints',
-        message: provider.errorMessage,
+        title: 'Could not load campus feed',
+        message: feedProvider.errorMessage,
         actionLabel: 'Retry',
-        onAction: () => provider.loadComplaints(refresh: true),
+        onAction: () => feedProvider.loadFeed(refresh: true),
       );
     }
-    if (provider.complaints.isEmpty) {
+
+    if (feedProvider.isEmpty) {
       return const EmptyState(
-        title: 'No complaints yet',
-        message: 'Campus complaints will appear here.',
-        icon: Icons.assignment_outlined,
+        title: 'No recent activity',
+        message:
+            'New complaints, lost & found posts, and announcements will appear here.',
+        icon: Icons.inbox_outlined,
       );
     }
+
     return Column(
-      children: provider.complaints
-          .take(5)
-          .map(
-            (complaint) => Padding(
-              padding: const EdgeInsets.only(
-                bottom: AppDimensions.spacingSmall,
-              ),
-              child: _ComplaintCard(complaint: complaint),
+      children: feedProvider.items.map((item) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppDimensions.spacingMedium),
+          child: switch (item) {
+            ComplaintFeedItem(:final complaint) => ComplaintFeedCard(
+              complaint: complaint,
             ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _ComplaintCard extends StatelessWidget {
-  const _ComplaintCard({required this.complaint});
-
-  final Complaint complaint;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: () =>
-          context.push(AppRoutes.studentComplaintDetail(complaint.complaintId)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('#${complaint.complaintId}', style: AppTextStyles.caption),
-              const Spacer(),
-              _Badge(
-                label: _humanize(complaint.status),
-                color: _statusColor(complaint.status),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimensions.spacingSmall),
-          Text(complaint.title, style: AppTextStyles.headingSmall),
-          const SizedBox(height: 4),
-          Text(
-            complaint.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: AppDimensions.spacingSmall),
-          Wrap(
-            spacing: AppDimensions.spacingMedium,
-            runSpacing: 4,
-            children: [
-              if (complaint.departmentName != null)
-                _Metadata(
-                  icon: Icons.apartment_outlined,
-                  text: complaint.departmentName!,
-                ),
-              if (complaint.location != null)
-                _Metadata(
-                  icon: Icons.location_on_outlined,
-                  text: complaint.location!,
-                ),
-              if (complaint.createdAt != null)
-                _Metadata(
-                  icon: Icons.schedule_outlined,
-                  text: _dateLabel(complaint.createdAt!),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppDimensions.spacingSmall),
-          Row(
-            children: [
-              if (complaint.finalPriority != null)
-                _Badge(
-                  label: _humanize(complaint.finalPriority!),
-                  color: AppColors.warning,
-                ),
-              const Spacer(),
-              const Icon(
-                Icons.favorite_border,
-                size: AppDimensions.iconSmall,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text('${complaint.supportCount}', style: AppTextStyles.caption),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _humanize(String value) => value
-      .toLowerCase()
-      .split('_')
-      .map(
-        (part) => part.isEmpty
-            ? part
-            : '${part[0].toUpperCase()}${part.substring(1)}',
-      )
-      .join(' ');
-
-  static Color _statusColor(String status) {
-    switch (status) {
-      case 'RESOLVED':
-      case 'CLOSED':
-        return AppColors.success;
-      case 'ESCALATED':
-        return AppColors.error;
-      case 'IN_PROGRESS':
-        return AppColors.primary;
-      default:
-        return AppColors.warning;
-    }
-  }
-
-  static String _dateLabel(DateTime date) =>
-      '${date.day}/${date.month}/${date.year}';
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(label, style: AppTextStyles.caption.copyWith(color: color)),
-    );
-  }
-}
-
-class _Metadata extends StatelessWidget {
-  const _Metadata({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: AppDimensions.iconSmall,
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(width: 4),
-        Text(text, style: AppTextStyles.caption),
-      ],
+            LostFoundFeedItem(:final item) => LostFoundFeedCard(item: item),
+            AnnouncementFeedItem(:final announcement) => AnnouncementFeedCard(
+              item: announcement,
+            ),
+          },
+        );
+      }).toList(),
     );
   }
 }

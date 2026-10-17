@@ -208,6 +208,51 @@ class ComplaintService {
     return Complaint.fromJson(data);
   }
 
+  Future<Complaint> updateComplaint(
+    int complaintId, {
+    String? status,
+    String? finalPriority,
+    String? remarks,
+    DateTime? deadline,
+    bool clearDeadline = false,
+    String? title,
+    String? description,
+    String? location,
+    int? departmentId,
+    int? supervisorId,
+    bool clearSupervisor = false,
+  }) async {
+    final response = await _authenticatedPatch(
+      ApiEndpoints.updateComplaint(complaintId),
+      body: {
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (finalPriority != null && finalPriority.isNotEmpty)
+          'final_priority': finalPriority,
+        if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+        if (clearDeadline)
+          'deadline': null
+        else if (deadline != null)
+          'deadline': deadline.toIso8601String(),
+        if (title != null && title.isNotEmpty) 'title': title,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        if (location != null && location.isNotEmpty) 'location': location,
+        'department_id': ?departmentId,
+        if (clearSupervisor)
+          'supervisor_id': null
+        else
+          'supervisor_id': ?supervisorId,
+      },
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid complaint data.',
+      );
+    }
+    return Complaint.fromJson(data);
+  }
+
   Future<Map<String, dynamic>> _authenticatedGet(String path) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) throw const ComplaintException('Please sign in again.');
@@ -234,6 +279,23 @@ class ComplaintService {
     }
     try {
       return await _apiClient.post(path, idToken: idToken, body: body);
+    } on ApiException catch (error) {
+      throw ComplaintException(error.message);
+    }
+  }
+
+  Future<Map<String, dynamic>> _authenticatedPatch(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw const ComplaintException('Please sign in again.');
+    final idToken = await user.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw const ComplaintException('Please sign in again.');
+    }
+    try {
+      return await _apiClient.patch(path, idToken: idToken, body: body);
     } on ApiException catch (error) {
       throw ComplaintException(error.message);
     }

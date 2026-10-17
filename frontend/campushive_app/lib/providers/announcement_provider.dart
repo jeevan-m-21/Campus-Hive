@@ -64,11 +64,97 @@ class AnnouncementProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> toggleLike(int announcementId) async {
+    try {
+      final result = await _service.toggleLike(announcementId);
+      final index = _items.indexWhere(
+        (a) => a.announcementId == announcementId,
+      );
+      if (index >= 0) {
+        final current = _items[index];
+        _items = [
+          ..._items.sublist(0, index),
+          Announcement(
+            announcementId: current.announcementId,
+            organizationId: current.organizationId,
+            createdBy: current.createdBy,
+            title: current.title,
+            description: current.description,
+            attachmentUrl: current.attachmentUrl,
+            attachmentType: current.attachmentType,
+            isImportant: current.isImportant,
+            likeCount: result.likeCount,
+            isLiked: result.isLiked,
+            createdAt: current.createdAt,
+            updatedAt: current.updatedAt,
+          ),
+          ..._items.sublist(index + 1),
+        ];
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
   Future<AnnouncementPage> _fetch(int page) => _service.fetchAnnouncements(
     page: page,
     perPage: 20,
     important: _importantOnly,
   );
+
+  Future<Announcement> createAnnouncement({
+    required String title,
+    required String description,
+    bool isImportant = false,
+    String attachmentType = 'NONE',
+    String? attachmentUrl,
+  }) async {
+    final created = await _service.createAnnouncement(
+      title: title,
+      description: description,
+      isImportant: isImportant,
+      attachmentType: attachmentType,
+      attachmentUrl: attachmentUrl,
+    );
+    _items = [created, ..._items];
+    _total++;
+    notifyListeners();
+    return created;
+  }
+
+  Future<Announcement> updateAnnouncement(
+    int announcementId, {
+    String? title,
+    String? description,
+    bool? isImportant,
+    String? attachmentType,
+    String? attachmentUrl,
+  }) async {
+    final updated = await _service.updateAnnouncement(
+      announcementId,
+      title: title,
+      description: description,
+      isImportant: isImportant,
+      attachmentType: attachmentType,
+      attachmentUrl: attachmentUrl,
+    );
+    final index = _items.indexWhere((a) => a.announcementId == announcementId);
+    if (index >= 0) {
+      _items = [
+        ..._items.sublist(0, index),
+        updated,
+        ..._items.sublist(index + 1),
+      ];
+      notifyListeners();
+    }
+    return updated;
+  }
+
+  Future<void> deleteAnnouncement(int announcementId) async {
+    await _service.deleteAnnouncement(announcementId);
+    _items = _items.where((a) => a.announcementId != announcementId).toList();
+    if (_total > 0) _total--;
+    notifyListeners();
+  }
 
   void _apply(AnnouncementPage result, {required bool replace}) {
     _items = replace

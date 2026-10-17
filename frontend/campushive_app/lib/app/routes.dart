@@ -1,5 +1,8 @@
 import 'package:go_router/go_router.dart';
 
+import '../features/org_admin/admin_shell.dart';
+import '../features/org_admin/complaints/admin_complaint_detail_screen.dart';
+import '../features/org_admin/notifications/admin_notifications_screen.dart';
 import '../features/auth/landing_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -10,6 +13,9 @@ import '../features/student/complaints/report_issue_screen.dart';
 import '../features/student/lost_found/report_lost_found_screen.dart';
 import '../features/student/profile/my_complaints_activity_screen.dart';
 import '../features/student/profile/my_lost_found_activity_screen.dart';
+import '../features/supervisor/complaints/supervisor_complaint_detail_screen.dart';
+import '../features/supervisor/notifications/supervisor_notifications_screen.dart';
+import '../features/supervisor/supervisor_shell.dart';
 
 abstract final class AppRoutes {
   static const splash = '/splash';
@@ -26,8 +32,28 @@ abstract final class AppRoutes {
   static const studentMyComplaints = '/student/activity/complaints';
   static const studentMyLostFound = '/student/activity/lost-found';
 
+  // Supervisor Routes
+  static const supervisorDashboard = '/supervisor/dashboard';
+  static const supervisorQueue = '/supervisor/queue';
+  static const supervisorAnnouncements = '/supervisor/announcements';
+  static const supervisorProfile = '/supervisor/profile';
+  static const supervisorNotifications = '/supervisor/notifications';
+
+  // Admin Routes
+  static const adminDashboard = '/admin/dashboard';
+  static const adminComplaints = '/admin/complaints';
+  static const adminAnnouncements = '/admin/announcements';
+  static const adminProfile = '/admin/profile';
+  static const adminNotifications = '/admin/notifications';
+
   static String studentComplaintDetail(int complaintId) =>
       '/student/complaints/$complaintId';
+
+  static String supervisorComplaintDetail(int complaintId) =>
+      '/supervisor/complaints/$complaintId';
+
+  static String adminComplaintDetail(int complaintId) =>
+      '/admin/complaints/$complaintId';
 
   static GoRouter router() {
     return GoRouter(
@@ -46,6 +72,7 @@ abstract final class AppRoutes {
           path: register,
           builder: (context, state) => const RegisterScreen(),
         ),
+        // Student Routes
         GoRoute(
           path: studentDashboard,
           builder: (context, state) =>
@@ -90,6 +117,64 @@ abstract final class AppRoutes {
         GoRoute(
           path: '/student/complaints/:complaintId',
           builder: (context, state) => ComplaintDetailScreen(
+            complaintId: int.parse(state.pathParameters['complaintId']!),
+          ),
+        ),
+        // Supervisor Routes
+        GoRoute(
+          path: supervisorDashboard,
+          builder: (context, state) =>
+              const SupervisorShellScreen(selectedIndex: 0),
+        ),
+        GoRoute(
+          path: supervisorQueue,
+          builder: (context, state) =>
+              const SupervisorShellScreen(selectedIndex: 1),
+        ),
+        GoRoute(
+          path: supervisorAnnouncements,
+          builder: (context, state) =>
+              const SupervisorShellScreen(selectedIndex: 2),
+        ),
+        GoRoute(
+          path: supervisorProfile,
+          builder: (context, state) =>
+              const SupervisorShellScreen(selectedIndex: 3),
+        ),
+        GoRoute(
+          path: supervisorNotifications,
+          builder: (context, state) => const SupervisorNotificationsScreen(),
+        ),
+        GoRoute(
+          path: '/supervisor/complaints/:complaintId',
+          builder: (context, state) => SupervisorComplaintDetailScreen(
+            complaintId: int.parse(state.pathParameters['complaintId']!),
+          ),
+        ),
+        // Admin Routes
+        GoRoute(
+          path: adminDashboard,
+          builder: (context, state) => const AdminShellScreen(selectedIndex: 0),
+        ),
+        GoRoute(
+          path: adminComplaints,
+          builder: (context, state) => const AdminShellScreen(selectedIndex: 1),
+        ),
+        GoRoute(
+          path: adminAnnouncements,
+          builder: (context, state) => const AdminShellScreen(selectedIndex: 2),
+        ),
+        GoRoute(
+          path: adminProfile,
+          builder: (context, state) => const AdminShellScreen(selectedIndex: 3),
+        ),
+        GoRoute(
+          path: adminNotifications,
+          builder: (context, state) => const AdminNotificationsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/complaints/:complaintId',
+          builder: (context, state) => AdminComplaintDetailScreen(
             complaintId: int.parse(state.pathParameters['complaintId']!),
           ),
         ),

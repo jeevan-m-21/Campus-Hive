@@ -22,11 +22,15 @@ class ComplaintProvider extends ChangeNotifier {
   String? _statusFilter;
   String? _priorityFilter;
   bool _mineOnly = false;
+  final Set<int> _supportedComplaintIds = <int>{};
 
   List<Complaint> get complaints => _complaints;
   bool get isLoading => _isLoading;
   bool get isLoadingPage => _isLoadingPage;
   bool get isSupporting => _isSupporting;
+  bool isComplaintSupported(Complaint complaint) =>
+      complaint.isSupported ||
+      _supportedComplaintIds.contains(complaint.complaintId);
   String? get errorMessage => _errorMessage;
   String? get supportErrorMessage => _supportErrorMessage;
   int get page => _page;
@@ -105,6 +109,7 @@ class ComplaintProvider extends ChangeNotifier {
       final supportCount = await _complaintService.supportComplaint(
         complaintId,
       );
+      _supportedComplaintIds.add(complaintId);
       final index = _complaints.indexWhere(
         (complaint) => complaint.complaintId == complaintId,
       );
@@ -125,6 +130,7 @@ class ComplaintProvider extends ChangeNotifier {
             'final_priority': complaint.finalPriority,
             'status': complaint.status,
             'support_count': supportCount,
+            'is_supported': true,
             'deadline': complaint.deadline?.toIso8601String(),
             'resolved_at': complaint.resolvedAt?.toIso8601String(),
             'student_feedback': complaint.studentFeedback,
@@ -138,6 +144,9 @@ class ComplaintProvider extends ChangeNotifier {
       }
       return true;
     } on ComplaintException catch (error) {
+      if (error.message.toLowerCase().contains('already supported')) {
+        _supportedComplaintIds.add(complaintId);
+      }
       _supportErrorMessage = error.message;
       return false;
     } catch (_) {

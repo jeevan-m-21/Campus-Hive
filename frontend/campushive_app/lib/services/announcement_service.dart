@@ -64,6 +64,143 @@ class AnnouncementService {
     }
   }
 
+  Future<({bool isLiked, int likeCount})> toggleLike(int announcementId) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.likeAnnouncement(announcementId),
+        idToken: token,
+        body: const {},
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AnnouncementException('Invalid response from server.');
+      }
+      return (
+        isLiked: data['is_liked'] == true,
+        likeCount: _int(data['like_count'], 0),
+      );
+    } on ApiException catch (error) {
+      throw AnnouncementException(error.message);
+    }
+  }
+
+  Future<Announcement> createAnnouncement({
+    required String title,
+    required String description,
+    bool isImportant = false,
+    String attachmentType = 'NONE',
+    String? attachmentUrl,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.announcements,
+        idToken: token,
+        body: {
+          'title': title.trim(),
+          'description': description.trim(),
+          'is_important': isImportant,
+          'attachment_type': attachmentType,
+          if (attachmentType != 'NONE' &&
+              attachmentUrl != null &&
+              attachmentUrl.trim().isNotEmpty)
+            'attachment_url': attachmentUrl.trim(),
+        },
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AnnouncementException('Invalid response from server.');
+      }
+      return Announcement.fromJson(data);
+    } on ApiException catch (error) {
+      throw AnnouncementException(error.message);
+    }
+  }
+
+  Future<Announcement> updateAnnouncement(
+    int announcementId, {
+    String? title,
+    String? description,
+    bool? isImportant,
+    String? attachmentType,
+    String? attachmentUrl,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+
+    try {
+      final body = <String, dynamic>{};
+      if (title != null) body['title'] = title.trim();
+      if (description != null) body['description'] = description.trim();
+      if (isImportant != null) body['is_important'] = isImportant;
+      if (attachmentType != null) {
+        body['attachment_type'] = attachmentType;
+        if (attachmentType == 'NONE') {
+          body['attachment_url'] = null;
+        } else if (attachmentUrl != null) {
+          body['attachment_url'] = attachmentUrl.trim();
+        }
+      } else if (attachmentUrl != null) {
+        body['attachment_url'] = attachmentUrl.trim();
+      }
+
+      final response = await _apiClient.patch(
+        ApiEndpoints.updateAnnouncement(announcementId),
+        idToken: token,
+        body: body,
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AnnouncementException('Invalid response from server.');
+      }
+      return Announcement.fromJson(data);
+    } on ApiException catch (error) {
+      throw AnnouncementException(error.message);
+    }
+  }
+
+  Future<void> deleteAnnouncement(int announcementId) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+
+    try {
+      await _apiClient.delete(
+        ApiEndpoints.deleteAnnouncement(announcementId),
+        idToken: token,
+      );
+    } on ApiException catch (error) {
+      throw AnnouncementException(error.message);
+    }
+  }
+
   static int _int(Object? value, int fallback) =>
       value is num ? value.toInt() : fallback;
 }

@@ -55,6 +55,11 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
       if (session.role.toUpperCase() == 'STUDENT') {
         context.go(AppRoutes.studentDashboard);
+      } else if (session.role.toUpperCase() == 'SUPERVISOR') {
+        context.go(AppRoutes.supervisorDashboard);
+      } else if (session.role.toUpperCase() == 'ORG_ADMIN' ||
+          session.role.toUpperCase() == 'SUPER_ADMIN') {
+        context.go(AppRoutes.adminDashboard);
       } else {
         setState(
           () => _errorMessage =

@@ -49,3 +49,57 @@ app.*.map.json
 .env.*
 
 backend/config/firebase-key.json
+
+# ==========================================
+# Python / Flask backend
+# ==========================================
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Backend runtime data
+/backend/logs/
+/backend/uploads/
+
+# Environment examples should remain trackable
+!.env.example
+
+# Firebase service account keys
+**/firebase-key.json
+
+# ==========================================
+# Flutter / Dart generated files
+# ==========================================
+
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+**/.dart_tool/
+**/build/
+**/coverage/
+
+# ==========================================
+# Node / React generated files
+# ==========================================
+
+node_modules/
+dist/
+
+# ==========================================
+# IDE and operating system files
+# ==========================================
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini

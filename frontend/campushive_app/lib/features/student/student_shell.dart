@@ -8,6 +8,7 @@ import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_card.dart';
 import '../../providers/complaint_provider.dart';
+import '../../providers/home_feed_provider.dart';
 import 'complaints/student_complaints_screen.dart';
 import 'home/student_dashboard_screen.dart';
 import 'lost_found/lost_found_screen.dart';
@@ -22,8 +23,13 @@ class StudentShellScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ComplaintProvider()..loadComplaints(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => ComplaintProvider()..loadComplaints(),
+        ),
+        ChangeNotifierProvider(create: (_) => HomeFeedProvider()..loadFeed()),
+      ],
       child: Scaffold(
         body: IndexedStack(
           index: selectedIndex,

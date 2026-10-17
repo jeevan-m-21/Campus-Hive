@@ -12,8 +12,10 @@ from app.models.complaint_chat import ComplaintChat
 from app.models.complaint_status_history import ComplaintStatusHistory
 from app.models.lost_found import LostFound
 from app.models.lost_found_image import LostFoundImage
+from app.models.lost_found_image import LostFoundImage
 from app.models.lost_found_chat import LostFoundChat
 from app.models.announcement import Announcement
+from app.models.announcement_like import AnnouncementLike
 from app.models.notification import Notification
 from app.models.ml_retraining_batch import MlRetrainingBatch
 from app.models.ml_retraining_item import MlRetrainingItem
@@ -35,6 +37,7 @@ __all__ = [
     'LostFoundImage',
     'LostFoundChat',
     'Announcement',
+    'AnnouncementLike',
     'Notification',
     'MlRetrainingBatch',
     'MlRetrainingItem',

@@ -44,11 +44,22 @@ def _get_complaint_or_404(complaint_id):
     return complaint, None
 
 
-def _serialize_complaint(complaint):
+def _serialize_complaint(complaint, current_user_id=None):
     complaint_data = complaint.to_dict()
     complaint_data['support_count'] = (
         ComplaintSupport.query.filter_by(complaint_id=complaint.complaint_id).count()
     )
+    if current_user_id is None and hasattr(g, 'current_user') and g.current_user:
+        current_user_id = g.current_user.user_id
+    if current_user_id:
+        complaint_data['is_supported'] = (
+            ComplaintSupport.query.filter_by(
+                complaint_id=complaint.complaint_id,
+                student_id=current_user_id,
+            ).first() is not None
+        )
+    else:
+        complaint_data['is_supported'] = False
     return complaint_data
 
 
@@ -243,10 +254,21 @@ def list_complaints():
             return error_response('validation_error', 'department_id must be an integer', 400)
 
     result = paginate_query(query.order_by(Complaint.created_at.desc()), page, per_page)
+    user_id = g.current_user.user_id if hasattr(g, 'current_user') and g.current_user else None
+    complaint_ids = [c['complaint_id'] for c in result['data']]
+    supported_set = set()
+    if user_id and complaint_ids:
+        user_supports = ComplaintSupport.query.filter(
+            ComplaintSupport.complaint_id.in_(complaint_ids),
+            ComplaintSupport.student_id == user_id,
+        ).all()
+        supported_set = {s.complaint_id for s in user_supports}
+
     for complaint in result['data']:
         complaint['support_count'] = ComplaintSupport.query.filter_by(
             complaint_id=complaint['complaint_id']
         ).count()
+        complaint['is_supported'] = complaint['complaint_id'] in supported_set
 
     return success_response(result, 'Complaints retrieved', 200)
 
