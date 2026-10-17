@@ -13,9 +13,9 @@ class NotificationService {
   final ApiClient _apiClient;
   final FirebaseAuth _firebaseAuth;
 
-  Future<List<AppNotification>> fetchNotifications({
+  Future<NotificationPage> fetchNotificationPage({
     int page = 1,
-    int perPage = 30,
+    int perPage = 20,
     bool unreadOnly = false,
     String? type,
   }) async {
@@ -30,15 +30,48 @@ class NotificationService {
     );
 
     final data = response['data'];
-    final items = data is Map<String, dynamic> ? data['data'] : data;
-    if (items is! List) {
-      return [];
+    if (data is! Map<String, dynamic> || data['data'] is! List) {
+      return NotificationPage(
+        notifications: const [],
+        page: page,
+        pages: 1,
+        total: 0,
+        hasNext: false,
+        hasPrevious: false,
+      );
     }
 
-    return items
-        .whereType<Map<String, dynamic>>()
-        .map(AppNotification.fromJson)
-        .toList();
+    final pagination = data['pagination'];
+    final paginationMap = pagination is Map<String, dynamic>
+        ? pagination
+        : <String, dynamic>{};
+
+    return NotificationPage(
+      notifications: (data['data'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map(AppNotification.fromJson)
+          .toList(),
+      page: _int(paginationMap['page'], page),
+      pages: _int(paginationMap['pages'], 1),
+      total: _int(paginationMap['total'], 0),
+      hasNext: paginationMap['has_next'] == true,
+      hasPrevious: paginationMap['has_prev'] == true,
+    );
+  }
+
+  Future<List<AppNotification>> fetchNotifications({
+    int page = 1,
+    int perPage = 30,
+    bool unreadOnly = false,
+    String? type,
+  }) async {
+    final result = await fetchNotificationPage(
+      page: page,
+      perPage: perPage,
+      unreadOnly: unreadOnly,
+      type: type,
+    );
+    return result.notifications;
   }
 
   Future<int> fetchUnreadCount() async {
@@ -146,6 +179,27 @@ class NotificationService {
       throw NotificationException(error.message);
     }
   }
+
+  static int _int(Object? value, int fallback) =>
+      value is num ? value.toInt() : fallback;
+}
+
+class NotificationPage {
+  const NotificationPage({
+    required this.notifications,
+    required this.page,
+    required this.pages,
+    required this.total,
+    required this.hasNext,
+    required this.hasPrevious,
+  });
+
+  final List<AppNotification> notifications;
+  final int page;
+  final int pages;
+  final int total;
+  final bool hasNext;
+  final bool hasPrevious;
 }
 
 class NotificationException implements Exception {

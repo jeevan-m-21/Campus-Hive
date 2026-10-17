@@ -101,6 +101,61 @@ class AnnouncementProvider extends ChangeNotifier {
     important: _importantOnly,
   );
 
+  Future<Announcement> createAnnouncement({
+    required String title,
+    required String description,
+    bool isImportant = false,
+    String attachmentType = 'NONE',
+    String? attachmentUrl,
+  }) async {
+    final created = await _service.createAnnouncement(
+      title: title,
+      description: description,
+      isImportant: isImportant,
+      attachmentType: attachmentType,
+      attachmentUrl: attachmentUrl,
+    );
+    _items = [created, ..._items];
+    _total++;
+    notifyListeners();
+    return created;
+  }
+
+  Future<Announcement> updateAnnouncement(
+    int announcementId, {
+    String? title,
+    String? description,
+    bool? isImportant,
+    String? attachmentType,
+    String? attachmentUrl,
+  }) async {
+    final updated = await _service.updateAnnouncement(
+      announcementId,
+      title: title,
+      description: description,
+      isImportant: isImportant,
+      attachmentType: attachmentType,
+      attachmentUrl: attachmentUrl,
+    );
+    final index = _items.indexWhere((a) => a.announcementId == announcementId);
+    if (index >= 0) {
+      _items = [
+        ..._items.sublist(0, index),
+        updated,
+        ..._items.sublist(index + 1),
+      ];
+      notifyListeners();
+    }
+    return updated;
+  }
+
+  Future<void> deleteAnnouncement(int announcementId) async {
+    await _service.deleteAnnouncement(announcementId);
+    _items = _items.where((a) => a.announcementId != announcementId).toList();
+    if (_total > 0) _total--;
+    notifyListeners();
+  }
+
   void _apply(AnnouncementPage result, {required bool replace}) {
     _items = replace
         ? result.announcements

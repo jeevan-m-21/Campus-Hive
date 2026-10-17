@@ -214,9 +214,13 @@ class ComplaintService {
     String? finalPriority,
     String? remarks,
     DateTime? deadline,
+    bool clearDeadline = false,
     String? title,
     String? description,
     String? location,
+    int? departmentId,
+    int? supervisorId,
+    bool clearSupervisor = false,
   }) async {
     final response = await _authenticatedPatch(
       ApiEndpoints.updateComplaint(complaintId),
@@ -225,11 +229,19 @@ class ComplaintService {
         if (finalPriority != null && finalPriority.isNotEmpty)
           'final_priority': finalPriority,
         if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
-        if (deadline != null) 'deadline': deadline.toIso8601String(),
+        if (clearDeadline)
+          'deadline': null
+        else if (deadline != null)
+          'deadline': deadline.toIso8601String(),
         if (title != null && title.isNotEmpty) 'title': title,
         if (description != null && description.isNotEmpty)
           'description': description,
         if (location != null && location.isNotEmpty) 'location': location,
+        'department_id': ?departmentId,
+        if (clearSupervisor)
+          'supervisor_id': null
+        else
+          'supervisor_id': ?supervisorId,
       },
     );
     final data = response['data'];

@@ -25,6 +25,15 @@ abstract final class ApiEndpoints {
   static String likeAnnouncement(int announcementId) =>
       '$announcements/$announcementId/like';
 
+  static String announcementDetail(int announcementId) =>
+      '$announcements/$announcementId';
+
+  static String updateAnnouncement(int announcementId) =>
+      '$announcements/$announcementId';
+
+  static String deleteAnnouncement(int announcementId) =>
+      '$announcements/$announcementId';
+
   static String markNotificationRead(int notificationId) =>
       '$notifications/$notificationId/read';
 
