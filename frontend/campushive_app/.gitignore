@@ -43,3 +43,19 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Additional Flutter generated files
+.flutter-plugins
+.packages
+**/.dart_tool/
+**/build/
+coverage/
+
+# IDE-specific settings
+.idea/
+.vscode/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
