@@ -7,6 +7,7 @@ import '../../../app/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/image_url_resolver.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -50,7 +51,8 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = _value(user['profile_image']);
+    final rawImageUrl = _value(user['profile_image']);
+    final imageUrl = resolveImageUrl(rawImageUrl);
     final fullName = _value(user['full_name']);
     final identifier = _value(user['usn_or_employee_id']);
     final email = _value(user['email']);
@@ -72,6 +74,7 @@ class _ProfileHeader extends StatelessWidget {
                   radius: 38,
                   backgroundColor: AppColors.divider,
                   backgroundImage: NetworkImage(imageUrl),
+                  onBackgroundImageError: (exception, stackTrace) {},
                 ),
           const SizedBox(width: AppDimensions.spacingMedium),
           Expanded(

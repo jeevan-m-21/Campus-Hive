@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/image_url_resolver.dart';
 import '../../../../core/widgets/app_card.dart';
 
-String resolveImageUrl(String url) {
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  final base = AppConstants.apiBaseUrl.replaceAll('/api/v1', '');
-  return '$base$url';
-}
+export '../../../../core/utils/image_url_resolver.dart';
 
 String formatRelativeTime(DateTime? date) {
   if (date == null) return '';
@@ -139,11 +133,13 @@ class _UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+    final resolvedUrl = resolveImageUrl(avatarUrl);
+    if (resolvedUrl.isNotEmpty) {
       return CircleAvatar(
         radius: 18,
         backgroundColor: AppColors.divider,
-        backgroundImage: NetworkImage(resolveImageUrl(avatarUrl!)),
+        backgroundImage: NetworkImage(resolvedUrl),
+        onBackgroundImageError: (exception, stackTrace) {},
       );
     }
     return CircleAvatar(
@@ -164,6 +160,24 @@ class FeedCardImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final fullUrl = resolveImageUrl(imageUrl);
 
+    if (fullUrl.isEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: height,
+          width: double.infinity,
+          color: AppColors.divider,
+          child: const Center(
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              size: 36,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Image.network(
@@ -171,6 +185,24 @@ class FeedCardImage extends StatelessWidget {
         height: height,
         width: double.infinity,
         fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: height,
+            width: double.infinity,
+            color: AppColors.divider.withValues(alpha: 0.3),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          );
+        },
         errorBuilder: (context, error, stackTrace) => Container(
           height: height,
           width: double.infinity,

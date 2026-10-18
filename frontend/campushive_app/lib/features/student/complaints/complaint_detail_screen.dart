@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
+import '../../../core/utils/image_url_resolver.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -296,9 +296,25 @@ class _PostImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fullUrl = imageUrl.startsWith('http')
-        ? imageUrl
-        : '${AppConstants.apiBaseUrl.replaceAll('/api/v1', '')}$imageUrl';
+    final fullUrl = resolveImageUrl(imageUrl);
+
+    if (fullUrl.isEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 160,
+          width: double.infinity,
+          color: AppColors.divider,
+          child: const Center(
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              size: 40,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -306,6 +322,24 @@ class _PostImage extends StatelessWidget {
         fullUrl,
         width: double.infinity,
         fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 160,
+            width: double.infinity,
+            color: AppColors.divider.withValues(alpha: 0.3),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          );
+        },
         errorBuilder: (context, error, stackTrace) => Container(
           height: 160,
           width: double.infinity,

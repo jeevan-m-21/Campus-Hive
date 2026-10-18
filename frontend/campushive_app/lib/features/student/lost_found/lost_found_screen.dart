@@ -6,6 +6,7 @@ import '../../../app/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/image_url_resolver.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -216,7 +217,10 @@ class _LostFoundCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = item.images.isNotEmpty ? item.images.first.imageUrl : null;
+    final rawImageUrl = item.images.isNotEmpty
+        ? item.images.first.imageUrl
+        : null;
+    final imageUrl = resolveImageUrl(rawImageUrl);
     final typeColor = item.itemType == 'LOST'
         ? AppColors.error
         : AppColors.success;
@@ -224,7 +228,7 @@ class _LostFoundCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (imageUrl != null && imageUrl.isNotEmpty)
+          if (imageUrl.isNotEmpty) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
@@ -232,10 +236,40 @@ class _LostFoundCard extends StatelessWidget {
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 150,
+                    width: double.infinity,
+                    color: AppColors.divider.withValues(alpha: 0.3),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 150,
+                  width: double.infinity,
+                  color: AppColors.divider,
+                  child: const Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 36,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
               ),
             ),
-          if (imageUrl != null && imageUrl.isNotEmpty)
             const SizedBox(height: AppDimensions.spacingSmall),
+          ],
           Row(
             children: [
               _Badge(label: item.itemType, color: typeColor),
