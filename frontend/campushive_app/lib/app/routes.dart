@@ -8,6 +8,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
 import '../features/student/student_shell.dart';
+import '../features/student/announcements/announcement_detail_screen.dart';
 import '../features/student/complaints/complaint_detail_screen.dart';
 import '../features/student/complaints/report_issue_screen.dart';
 import '../features/student/lost_found/lost_found_detail_screen.dart';
@@ -53,11 +54,17 @@ abstract final class AppRoutes {
   static String studentLostFoundDetail(int itemId) =>
       '/student/lost-found/$itemId';
 
+  static String studentAnnouncementDetail(int announcementId) =>
+      '/student/announcements/$announcementId';
+
   static String supervisorComplaintDetail(int complaintId) =>
       '/supervisor/complaints/$complaintId';
 
   static String adminComplaintDetail(int complaintId) =>
       '/admin/complaints/$complaintId';
+
+  static String adminAnnouncementDetail(int announcementId) =>
+      '/admin/announcements/$announcementId';
 
   static GoRouter router() {
     return GoRouter(
@@ -130,6 +137,13 @@ abstract final class AppRoutes {
             itemId: int.tryParse(state.pathParameters['itemId'] ?? '') ?? 0,
           ),
         ),
+        GoRoute(
+          path: '/student/announcements/:announcementId',
+          builder: (context, state) => AnnouncementDetailScreen(
+            announcementId:
+                int.tryParse(state.pathParameters['announcementId'] ?? '') ?? 0,
+          ),
+        ),
         // Supervisor Routes
         GoRoute(
           path: supervisorDashboard,
@@ -186,6 +200,13 @@ abstract final class AppRoutes {
           path: '/admin/complaints/:complaintId',
           builder: (context, state) => AdminComplaintDetailScreen(
             complaintId: int.parse(state.pathParameters['complaintId']!),
+          ),
+        ),
+        GoRoute(
+          path: '/admin/announcements/:announcementId',
+          builder: (context, state) => AnnouncementDetailScreen(
+            announcementId:
+                int.tryParse(state.pathParameters['announcementId'] ?? '') ?? 0,
           ),
         ),
       ],

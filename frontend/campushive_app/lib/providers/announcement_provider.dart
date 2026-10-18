@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/announcement.dart';
+import '../models/announcement_attachment.dart';
 import '../services/announcement_service.dart';
 
 class AnnouncementProvider extends ChangeNotifier {
@@ -74,19 +75,9 @@ class AnnouncementProvider extends ChangeNotifier {
         final current = _items[index];
         _items = [
           ..._items.sublist(0, index),
-          Announcement(
-            announcementId: current.announcementId,
-            organizationId: current.organizationId,
-            createdBy: current.createdBy,
-            title: current.title,
-            description: current.description,
-            attachmentUrl: current.attachmentUrl,
-            attachmentType: current.attachmentType,
-            isImportant: current.isImportant,
+          current.copyWith(
             likeCount: result.likeCount,
             isLiked: result.isLiked,
-            createdAt: current.createdAt,
-            updatedAt: current.updatedAt,
           ),
           ..._items.sublist(index + 1),
         ];
@@ -94,6 +85,9 @@ class AnnouncementProvider extends ChangeNotifier {
       }
     } catch (_) {}
   }
+
+  Future<AnnouncementAttachment> uploadAttachment(String filePath) =>
+      _service.uploadAttachment(filePath);
 
   Future<AnnouncementPage> _fetch(int page) => _service.fetchAnnouncements(
     page: page,
@@ -107,6 +101,7 @@ class AnnouncementProvider extends ChangeNotifier {
     bool isImportant = false,
     String attachmentType = 'NONE',
     String? attachmentUrl,
+    List<Map<String, dynamic>>? attachments,
   }) async {
     final created = await _service.createAnnouncement(
       title: title,
@@ -114,6 +109,7 @@ class AnnouncementProvider extends ChangeNotifier {
       isImportant: isImportant,
       attachmentType: attachmentType,
       attachmentUrl: attachmentUrl,
+      attachments: attachments,
     );
     _items = [created, ..._items];
     _total++;
@@ -128,6 +124,7 @@ class AnnouncementProvider extends ChangeNotifier {
     bool? isImportant,
     String? attachmentType,
     String? attachmentUrl,
+    List<Map<String, dynamic>>? attachments,
   }) async {
     final updated = await _service.updateAnnouncement(
       announcementId,
@@ -136,6 +133,7 @@ class AnnouncementProvider extends ChangeNotifier {
       isImportant: isImportant,
       attachmentType: attachmentType,
       attachmentUrl: attachmentUrl,
+      attachments: attachments,
     );
     final index = _items.indexWhere((a) => a.announcementId == announcementId);
     if (index >= 0) {
