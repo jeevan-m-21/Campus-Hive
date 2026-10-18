@@ -17,20 +17,25 @@ class AuthService {
     FirebaseAuth? firebaseAuth,
     ApiClient? apiClient,
     SecureStorage? secureStorage,
-  }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+  }) : _firebaseAuth = firebaseAuth,
        _apiClient = apiClient ?? ApiClient(),
        _secureStorage = secureStorage ?? SecureStorage();
 
-  final FirebaseAuth _firebaseAuth;
+  final FirebaseAuth? _firebaseAuth;
   final ApiClient _apiClient;
   final SecureStorage _secureStorage;
+
+  FirebaseAuth get _auth => _firebaseAuth ?? FirebaseAuth.instance;
+
+  static const inactivityDuration = Duration(days: 3);
+  static const maxSessionDuration = Duration(days: 7);
 
   Future<AuthSession> login({
     required String email,
     required String password,
     required String identifier,
   }) async {
-    final credential = await _firebaseAuth.signInWithEmailAndPassword(
+    final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
@@ -41,7 +46,7 @@ class AuthService {
 
     final idToken = await firebaseUser.getIdToken();
     if (idToken == null || idToken.isEmpty) {
-      await _firebaseAuth.signOut();
+      await _auth.signOut();
       throw const AuthException('Unable to obtain Firebase ID token.');
     }
 
@@ -64,21 +69,133 @@ class AuthService {
         throw const AuthException('The server returned an invalid user role.');
       }
 
-      await _secureStorage.writeSession(idToken: idToken, user: user);
+      final nowUtc = DateTime.now().toUtc();
+      await _secureStorage.writeSession(
+        idToken: idToken,
+        user: user,
+        sessionCreatedAt: nowUtc,
+        lastActiveAt: nowUtc,
+      );
       return AuthSession(user: user, role: role);
     } on ApiException catch (error) {
       if (error.code == 'invalid_identifier') {
-        await _firebaseAuth.signOut();
+        await _auth.signOut();
       }
       throw AuthException(_backendMessage(error));
     } catch (_) {
-      await _firebaseAuth.signOut();
+      await _auth.signOut();
       rethrow;
     }
   }
 
+  Future<AuthSession> getCurrentUser(String idToken) async {
+    final response = await _apiClient.get(ApiEndpoints.me, idToken: idToken);
+    final data = response['data'];
+    final user = data is Map<String, dynamic> ? data['user'] : null;
+    if (user is! Map<String, dynamic>) {
+      throw const AuthException('The server returned an invalid user session.');
+    }
+
+    final role = user['role'];
+    final isActive = user['is_active'] == true;
+    if (role is! String || role.isEmpty || !isActive) {
+      throw const AuthException('User account is inactive or role is invalid.');
+    }
+
+    return AuthSession(user: user, role: role);
+  }
+
+  Future<AuthSession?> restoreSession() async {
+    // 1. Read stored session metadata
+    final stored = await _secureStorage.readSession();
+    if (stored == null) {
+      await signOut();
+      return null;
+    }
+
+    final nowUtc = DateTime.now().toUtc();
+
+    // 2. Check 3 days inactivity
+    if (stored.lastActiveAt == null ||
+        nowUtc.difference(stored.lastActiveAt!) > inactivityDuration) {
+      await signOut();
+      return null;
+    }
+
+    // 3. Check 7 days maximum session duration
+    if (stored.sessionCreatedAt == null ||
+        nowUtc.difference(stored.sessionCreatedAt!) > maxSessionDuration) {
+      await signOut();
+      return null;
+    }
+
+    // 4. Check Firebase currentUser
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) {
+      await signOut();
+      return null;
+    }
+
+    // 5. Request fresh Firebase ID token
+    String? idToken;
+    try {
+      idToken = await firebaseUser.getIdToken();
+    } catch (_) {
+      await signOut();
+      return null;
+    }
+
+    if (idToken == null || idToken.isEmpty) {
+      await signOut();
+      return null;
+    }
+
+    // 6 & 7. Call GET /api/v1/auth/me to validate backend and retrieve authoritative user & role
+    try {
+      final session = await getCurrentUser(idToken);
+
+      // 8. Update last-active timestamp only after successful validation
+      final updatedActive = DateTime.now().toUtc();
+      await _secureStorage.updateLastActive(updatedActive);
+
+      // Refresh stored user metadata with latest profile while preserving session creation time
+      await _secureStorage.writeSession(
+        idToken: idToken,
+        user: session.user,
+        sessionCreatedAt: stored.sessionCreatedAt,
+        lastActiveAt: updatedActive,
+      );
+
+      return session;
+    } on ApiException catch (error) {
+      // 9. If definitive 401 or 403, account is revoked/invalid -> sign out
+      if (error.statusCode == 401 || error.statusCode == 403) {
+        await signOut();
+        return null;
+      }
+      throw AuthNetworkException(
+        error.message.isNotEmpty
+            ? error.message
+            : 'Server error verifying session (${error.statusCode}).',
+      );
+    } catch (e) {
+      if (e is AuthException) {
+        await signOut();
+        return null;
+      }
+      throw const AuthNetworkException(
+        'Unable to connect to server. Please check your network.',
+      );
+    }
+  }
+
+  Future<void> recordActivity() async {
+    final nowUtc = DateTime.now().toUtc();
+    await _secureStorage.updateLastActive(nowUtc);
+  }
+
   Future<void> signOut() async {
-    await _firebaseAuth.signOut();
+    await _auth.signOut();
     await _secureStorage.clearSession();
   }
 
@@ -108,6 +225,12 @@ class AuthService {
 
 class AuthException implements Exception {
   const AuthException(this.message);
+
+  final String message;
+}
+
+class AuthNetworkException implements Exception {
+  const AuthNetworkException(this.message);
 
   final String message;
 }

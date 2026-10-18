@@ -1,5 +1,6 @@
 abstract final class ApiEndpoints {
   static const login = '/auth/login';
+  static const me = '/auth/me';
   static const complaints = '/complaints';
   static const complaintDepartments = '/complaints/departments';
   static const uploadComplaintImage = '/complaints/upload-image';
