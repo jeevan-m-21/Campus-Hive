@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../app/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -40,6 +42,9 @@ class AnnouncementFeedCard extends StatelessWidget {
       typeColor: item.isImportant ? AppColors.error : AppColors.info,
       createdAt: item.createdAt,
       fallbackIcon: Icons.campaign_outlined,
+      onTap: () => context.push(
+        AppRoutes.studentAnnouncementDetail(item.announcementId),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -116,7 +121,9 @@ class AnnouncementFeedCard extends StatelessWidget {
               if (item.attachmentType != 'NONE') ...[
                 const Spacer(),
                 FeedChip(
-                  label: item.attachmentType,
+                  label: item.attachments.length > 1
+                      ? '${item.attachmentType} (+${item.attachments.length - 1})'
+                      : item.attachmentType,
                   icon: item.attachmentType == 'PDF'
                       ? Icons.picture_as_pdf_outlined
                       : item.attachmentType == 'IMAGE'

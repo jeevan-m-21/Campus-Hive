@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/image_url_resolver.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -188,15 +191,19 @@ class _LostFoundItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = item.images.isNotEmpty ? item.images.first.imageUrl : null;
+    final rawImageUrl = item.images.isNotEmpty
+        ? item.images.first.imageUrl
+        : null;
+    final imageUrl = resolveImageUrl(rawImageUrl);
     final typeColor = item.itemType == 'LOST'
         ? AppColors.error
         : AppColors.success;
     return AppCard(
+      onTap: () => context.push(AppRoutes.studentLostFoundDetail(item.itemId)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (imageUrl != null && imageUrl.isNotEmpty) ...[
+          if (imageUrl.isNotEmpty) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
@@ -204,8 +211,36 @@ class _LostFoundItemCard extends StatelessWidget {
                 height: 140,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const SizedBox.shrink(),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 140,
+                    width: double.infinity,
+                    color: AppColors.divider.withValues(alpha: 0.3),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 140,
+                  width: double.infinity,
+                  color: AppColors.divider,
+                  child: const Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 32,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: AppDimensions.spacingSmall),

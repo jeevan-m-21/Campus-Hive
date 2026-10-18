@@ -1,8 +1,11 @@
 abstract final class ApiEndpoints {
   static const login = '/auth/login';
+  static const me = '/auth/me';
   static const complaints = '/complaints';
   static const complaintDepartments = '/complaints/departments';
   static const uploadComplaintImage = '/complaints/upload-image';
+  static const uploadAnnouncementAttachment =
+      '/announcements/upload-attachment';
   static const lostFound = '/lost-found';
   static const announcements = '/announcements';
   static const notifications = '/notifications';
@@ -34,9 +37,26 @@ abstract final class ApiEndpoints {
   static String deleteAnnouncement(int announcementId) =>
       '$announcements/$announcementId';
 
+  static String announcementAttachments(int announcementId) =>
+      '$announcements/$announcementId/attachments';
+
+  static String deleteAnnouncementAttachment(
+    int announcementId,
+    int attachmentId,
+  ) => '$announcements/$announcementId/attachments/$attachmentId';
+
   static String markNotificationRead(int notificationId) =>
       '$notifications/$notificationId/read';
 
   static String deleteNotification(int notificationId) =>
       '$notifications/$notificationId';
+
+  static String lostFoundDetail(int itemId) => '$lostFound/$itemId';
+
+  static String lostFoundComments(int itemId) => '$lostFound/$itemId/comments';
+
+  static String addLostFoundComment(int itemId) =>
+      '$lostFound/$itemId/comments';
+
+  static String updateLostFound(int itemId) => '$lostFound/$itemId';
 }

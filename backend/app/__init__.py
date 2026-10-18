@@ -96,7 +96,8 @@ def register_blueprints(app):
 
     @app.route('/uploads/<path:filename>')
     def serve_uploads(filename):
-        return send_from_directory(app.config.get('UPLOAD_FOLDER', './uploads'), filename)
+        upload_folder = os.path.abspath(app.config.get('UPLOAD_FOLDER', './uploads'))
+        return send_from_directory(upload_folder, filename)
     
     app.logger.info('All blueprints registered successfully')
 

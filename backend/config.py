@@ -4,11 +4,14 @@ Handles environment-specific settings and credentials
 """
 
 import os
+from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent
 
 
 class Config:
@@ -46,7 +49,11 @@ class Config:
 
     # File Upload Configuration
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
-    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', './uploads')
+    _upload_folder_env = os.getenv('UPLOAD_FOLDER')
+    if _upload_folder_env:
+        UPLOAD_FOLDER = _upload_folder_env if os.path.isabs(_upload_folder_env) else str((BASE_DIR / _upload_folder_env).resolve())
+    else:
+        UPLOAD_FOLDER = str(BASE_DIR / 'uploads')
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'}
 
     # Email Configuration
@@ -114,6 +121,7 @@ class TestingConfig(Config):
     DEBUG = False
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=5)
     MAIL_BACKEND = 'locmem'  # Use in-memory email backend for testing
 

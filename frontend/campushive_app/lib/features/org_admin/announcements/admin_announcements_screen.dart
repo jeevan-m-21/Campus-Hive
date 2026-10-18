@@ -135,6 +135,7 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
     return Scaffold(
       appBar: const AdminAppBar(title: 'Announcements'),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.campaign_outlined),

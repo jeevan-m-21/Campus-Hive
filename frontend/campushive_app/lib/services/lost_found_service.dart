@@ -4,6 +4,7 @@ import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
 import '../core/network/api_exception.dart';
 import '../models/lost_found.dart';
+import '../models/lost_found_comment.dart';
 
 class LostFoundService {
   LostFoundService({ApiClient? apiClient, FirebaseAuth? firebaseAuth})
@@ -126,6 +127,99 @@ class LostFoundService {
       final data = response['data'];
       if (data is! Map<String, dynamic>) {
         throw const LostFoundException('Failed to parse created item.');
+      }
+      return LostFound.fromJson(data);
+    } on ApiException catch (error) {
+      throw LostFoundException(error.message);
+    }
+  }
+
+  Future<LostFound> fetchItem(int itemId) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw const LostFoundException('Please sign in again.');
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const LostFoundException('Please sign in again.');
+    }
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.lostFoundDetail(itemId),
+        idToken: token,
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const LostFoundException('Failed to load lost and found item.');
+      }
+      return LostFound.fromJson(data);
+    } on ApiException catch (error) {
+      throw LostFoundException(error.message);
+    }
+  }
+
+  Future<List<LostFoundComment>> fetchComments(int itemId) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw const LostFoundException('Please sign in again.');
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const LostFoundException('Please sign in again.');
+    }
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.lostFoundComments(itemId),
+        idToken: token,
+      );
+      final data = response['data'];
+      if (data is! List) {
+        throw const LostFoundException('Failed to load comments.');
+      }
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(LostFoundComment.fromJson)
+          .toList();
+    } on ApiException catch (error) {
+      throw LostFoundException(error.message);
+    }
+  }
+
+  Future<LostFoundComment> addComment(int itemId, String message) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw const LostFoundException('Please sign in again.');
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const LostFoundException('Please sign in again.');
+    }
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.addLostFoundComment(itemId),
+        idToken: token,
+        body: {'message': message, 'message_type': 'TEXT'},
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const LostFoundException('Failed to parse comment response.');
+      }
+      return LostFoundComment.fromJson(data);
+    } on ApiException catch (error) {
+      throw LostFoundException(error.message);
+    }
+  }
+
+  Future<LostFound> closeItem(int itemId) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw const LostFoundException('Please sign in again.');
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const LostFoundException('Please sign in again.');
+    }
+    try {
+      final response = await _apiClient.patch(
+        ApiEndpoints.updateLostFound(itemId),
+        idToken: token,
+        body: {'status': 'CLOSED'},
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const LostFoundException('Failed to close item.');
       }
       return LostFound.fromJson(data);
     } on ApiException catch (error) {

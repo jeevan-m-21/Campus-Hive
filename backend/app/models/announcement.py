@@ -29,6 +29,14 @@ class Announcement(BaseModel, TimestampMixin):
     )
     is_important = db.Column(db.Boolean, server_default=db.text('0'))
 
+    attachments = db.relationship(
+        'AnnouncementAttachment',
+        backref='announcement',
+        cascade='all, delete-orphan',
+        order_by='AnnouncementAttachment.attachment_id.asc()',
+        lazy='select',
+    )
+
     __table_args__ = (
         db.Index('organization_id', 'organization_id'),
         db.Index('created_by', 'created_by'),

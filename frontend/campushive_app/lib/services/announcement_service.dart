@@ -4,21 +4,24 @@ import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
 import '../core/network/api_exception.dart';
 import '../models/announcement.dart';
+import '../models/announcement_attachment.dart';
 
 class AnnouncementService {
   AnnouncementService({ApiClient? apiClient, FirebaseAuth? firebaseAuth})
     : _apiClient = apiClient ?? ApiClient(),
-      _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+      _firebaseAuth = firebaseAuth;
 
   final ApiClient _apiClient;
-  final FirebaseAuth _firebaseAuth;
+  final FirebaseAuth? _firebaseAuth;
+
+  FirebaseAuth get _auth => _firebaseAuth ?? FirebaseAuth.instance;
 
   Future<AnnouncementPage> fetchAnnouncements({
     required int page,
     required int perPage,
     bool? important,
   }) async {
-    final user = _firebaseAuth.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       throw const AnnouncementException('Please sign in again.');
     }
@@ -64,8 +67,32 @@ class AnnouncementService {
     }
   }
 
+  Future<Announcement> fetchAnnouncement(int announcementId) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.announcementDetail(announcementId),
+        idToken: token,
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AnnouncementException('Failed to load announcement.');
+      }
+      return Announcement.fromJson(data);
+    } on ApiException catch (error) {
+      throw AnnouncementException(error.message);
+    }
+  }
+
   Future<({bool isLiked, int likeCount})> toggleLike(int announcementId) async {
-    final user = _firebaseAuth.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       throw const AnnouncementException('Please sign in again.');
     }
@@ -92,14 +119,8 @@ class AnnouncementService {
     }
   }
 
-  Future<Announcement> createAnnouncement({
-    required String title,
-    required String description,
-    bool isImportant = false,
-    String attachmentType = 'NONE',
-    String? attachmentUrl,
-  }) async {
-    final user = _firebaseAuth.currentUser;
+  Future<AnnouncementAttachment> uploadAttachment(String filePath) async {
+    final user = _auth.currentUser;
     if (user == null) {
       throw const AnnouncementException('Please sign in again.');
     }
@@ -109,19 +130,58 @@ class AnnouncementService {
     }
 
     try {
+      final response = await _apiClient.postMultipart(
+        ApiEndpoints.uploadAnnouncementAttachment,
+        idToken: token,
+        filePath: filePath,
+        fileField: 'file',
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AnnouncementException('Invalid response from server.');
+      }
+      return AnnouncementAttachment.fromJson(data);
+    } on ApiException catch (error) {
+      throw AnnouncementException(error.message);
+    }
+  }
+
+  Future<Announcement> createAnnouncement({
+    required String title,
+    required String description,
+    bool isImportant = false,
+    String attachmentType = 'NONE',
+    String? attachmentUrl,
+    List<Map<String, dynamic>>? attachments,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const AnnouncementException('Please sign in again.');
+    }
+
+    try {
+      final body = <String, dynamic>{
+        'title': title.trim(),
+        'description': description.trim(),
+        'is_important': isImportant,
+        'attachment_type': attachmentType,
+        if (attachmentType != 'NONE' &&
+            attachmentUrl != null &&
+            attachmentUrl.trim().isNotEmpty)
+          'attachment_url': attachmentUrl.trim(),
+      };
+      if (attachments != null) {
+        body['attachments'] = attachments;
+      }
+
       final response = await _apiClient.post(
         ApiEndpoints.announcements,
         idToken: token,
-        body: {
-          'title': title.trim(),
-          'description': description.trim(),
-          'is_important': isImportant,
-          'attachment_type': attachmentType,
-          if (attachmentType != 'NONE' &&
-              attachmentUrl != null &&
-              attachmentUrl.trim().isNotEmpty)
-            'attachment_url': attachmentUrl.trim(),
-        },
+        body: body,
       );
       final data = response['data'];
       if (data is! Map<String, dynamic>) {
@@ -140,8 +200,9 @@ class AnnouncementService {
     bool? isImportant,
     String? attachmentType,
     String? attachmentUrl,
+    List<Map<String, dynamic>>? attachments,
   }) async {
-    final user = _firebaseAuth.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       throw const AnnouncementException('Please sign in again.');
     }
@@ -165,6 +226,9 @@ class AnnouncementService {
       } else if (attachmentUrl != null) {
         body['attachment_url'] = attachmentUrl.trim();
       }
+      if (attachments != null) {
+        body['attachments'] = attachments;
+      }
 
       final response = await _apiClient.patch(
         ApiEndpoints.updateAnnouncement(announcementId),
@@ -182,7 +246,7 @@ class AnnouncementService {
   }
 
   Future<void> deleteAnnouncement(int announcementId) async {
-    final user = _firebaseAuth.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       throw const AnnouncementException('Please sign in again.');
     }
