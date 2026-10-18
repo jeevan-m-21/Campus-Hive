@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -26,6 +28,7 @@ class LostFoundFeedCard extends StatelessWidget {
       typeColor: typeColor,
       createdAt: item.createdAt,
       fallbackIcon: Icons.search_outlined,
+      onTap: () => context.push(AppRoutes.studentLostFoundDetail(item.itemId)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

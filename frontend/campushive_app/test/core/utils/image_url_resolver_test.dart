@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:campushive_app/core/constants/app_constants.dart';
 import 'package:campushive_app/core/utils/image_url_resolver.dart';
 
 void main() {
@@ -64,9 +65,10 @@ void main() {
       () {
         const path = '/uploads/complaints/default.jpg';
         final result = resolveImageUrl(path);
+        final expectedOrigin = Uri.parse(AppConstants.apiBaseUrl).origin;
         expect(
           result,
-          equals('http://192.168.31.90:5000/uploads/complaints/default.jpg'),
+          equals('$expectedOrigin/uploads/complaints/default.jpg'),
         );
         expect(result, isNot(contains('/api/v1')));
       },

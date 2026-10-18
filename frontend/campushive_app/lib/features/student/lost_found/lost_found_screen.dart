@@ -225,6 +225,7 @@ class _LostFoundCard extends StatelessWidget {
         ? AppColors.error
         : AppColors.success;
     return AppCard(
+      onTap: () => context.push(AppRoutes.studentLostFoundDetail(item.itemId)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

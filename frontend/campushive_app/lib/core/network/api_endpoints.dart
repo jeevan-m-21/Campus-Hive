@@ -39,4 +39,13 @@ abstract final class ApiEndpoints {
 
   static String deleteNotification(int notificationId) =>
       '$notifications/$notificationId';
+
+  static String lostFoundDetail(int itemId) => '$lostFound/$itemId';
+
+  static String lostFoundComments(int itemId) => '$lostFound/$itemId/comments';
+
+  static String addLostFoundComment(int itemId) =>
+      '$lostFound/$itemId/comments';
+
+  static String updateLostFound(int itemId) => '$lostFound/$itemId';
 }

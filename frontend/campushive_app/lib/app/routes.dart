@@ -10,6 +10,7 @@ import '../features/auth/splash_screen.dart';
 import '../features/student/student_shell.dart';
 import '../features/student/complaints/complaint_detail_screen.dart';
 import '../features/student/complaints/report_issue_screen.dart';
+import '../features/student/lost_found/lost_found_detail_screen.dart';
 import '../features/student/lost_found/report_lost_found_screen.dart';
 import '../features/student/profile/my_complaints_activity_screen.dart';
 import '../features/student/profile/my_lost_found_activity_screen.dart';
@@ -48,6 +49,9 @@ abstract final class AppRoutes {
 
   static String studentComplaintDetail(int complaintId) =>
       '/student/complaints/$complaintId';
+
+  static String studentLostFoundDetail(int itemId) =>
+      '/student/lost-found/$itemId';
 
   static String supervisorComplaintDetail(int complaintId) =>
       '/supervisor/complaints/$complaintId';
@@ -118,6 +122,12 @@ abstract final class AppRoutes {
           path: '/student/complaints/:complaintId',
           builder: (context, state) => ComplaintDetailScreen(
             complaintId: int.parse(state.pathParameters['complaintId']!),
+          ),
+        ),
+        GoRoute(
+          path: '/student/lost-found/:itemId',
+          builder: (context, state) => LostFoundDetailScreen(
+            itemId: int.tryParse(state.pathParameters['itemId'] ?? '') ?? 0,
           ),
         ),
         // Supervisor Routes
