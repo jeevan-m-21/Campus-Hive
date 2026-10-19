@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../app/routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -8,6 +10,10 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_text_field.dart';
+import '../../models/academic_department.dart';
+import '../../models/organization.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 import 'auth_shell.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -25,21 +31,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  String? _organization;
-  String? _department;
+
+  List<Organization> _organizations = [];
+  List<AcademicDepartment> _departments = [];
+  Organization? _selectedOrganization;
+  AcademicDepartment? _selectedDepartment;
+
   bool _obscurePassword = true;
   bool _obscureConfirmation = true;
+  bool _isLoadingOrgs = false;
+  bool _isLoadingDepts = false;
   bool _isLoading = false;
   String? _errorMessage;
 
-  final _organizations = const [
-    'Select organization',
-    'Organization will be loaded from CampusHive',
-  ];
-  final _departments = const [
-    'Select academic department',
-    'Academic department will be loaded from CampusHive',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadOrganizations();
+    });
+  }
 
   @override
   void dispose() {
@@ -52,10 +63,84 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  Future<void> _loadOrganizations() async {
+    setState(() {
+      _isLoadingOrgs = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final orgs = await context.read<AuthProvider>().getPublicOrganizations();
+      if (!mounted) return;
+      setState(() {
+        _organizations = orgs;
+        _isLoadingOrgs = false;
+      });
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingOrgs = false;
+        _errorMessage = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingOrgs = false;
+        _errorMessage =
+            'Unable to load organizations. Please check your connection.';
+      });
+    }
+  }
+
+  Future<void> _loadAcademicDepartments(int organizationId) async {
+    setState(() {
+      _isLoadingDepts = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final depts = await context
+          .read<AuthProvider>()
+          .getAcademicDepartments(organizationId);
+      if (!mounted) return;
+      setState(() {
+        _departments = depts;
+        _isLoadingDepts = false;
+      });
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingDepts = false;
+        _errorMessage = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingDepts = false;
+        _errorMessage =
+            'Unable to load departments. Please check your connection.';
+      });
+    }
+  }
+
+  void _onOrganizationChanged(Organization? org) {
+    if (org == _selectedOrganization) return;
+    setState(() {
+      _selectedOrganization = org;
+      _selectedDepartment = null;
+      _departments = [];
+      _errorMessage = null;
+    });
+
+    if (org != null) {
+      _loadAcademicDepartments(org.organizationId);
+    }
+  }
+
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
-    if (_organization == null || _department == null) {
+    if (_selectedOrganization == null || _selectedDepartment == null) {
       setState(
         () => _errorMessage = 'Select an organization and academic department.',
       );
@@ -66,16 +151,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _errorMessage = 'Registration will be connected in a later step.';
-    });
+
+    try {
+      final session = await context.read<AuthProvider>().register(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        fullName: _nameController.text.trim(),
+        identifier: _identifierController.text.trim(),
+        phone: _phoneController.text.trim(),
+        organizationId: _selectedOrganization!.organizationId,
+        academicDepartmentId: _selectedDepartment!.academicDepartmentId,
+      );
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (session.role.toUpperCase() == 'STUDENT') {
+        context.go(AppRoutes.studentDashboard);
+      } else {
+        context.go(AppRoutes.login);
+      }
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _firebaseErrorMessage(error.code);
+      });
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage =
+            'Unable to complete registration. Please check your connection.';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final domainHint = _selectedOrganization?.emailDomain;
+
     return AuthShell(
       title: 'Create your student account',
       subtitle:
@@ -96,10 +217,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (value) => _required(value, 'Full name'),
               ),
               const SizedBox(height: AppDimensions.spacingMedium),
+              _buildOrganizationDropdown(),
+              const SizedBox(height: AppDimensions.spacingMedium),
+              _buildDepartmentDropdown(),
+              const SizedBox(height: AppDimensions.spacingMedium),
               AppTextField(
                 controller: _emailController,
                 label: 'Email',
-                hint: 'you@campus.edu',
+                hint: domainHint != null ? 'you@$domainHint' : 'you@campus.edu',
+                helperText: domainHint != null
+                    ? 'Must be your official @$domainHint email'
+                    : null,
                 prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 validator: _requiredEmail,
@@ -120,24 +248,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hint: 'Enter your student identifier',
                 prefixIcon: Icons.badge_outlined,
                 validator: (value) => _required(value, 'USN or Student ID'),
-              ),
-              const SizedBox(height: AppDimensions.spacingMedium),
-              _SelectionField(
-                label: 'Organization',
-                hint: 'Select your organization',
-                icon: Icons.account_balance_outlined,
-                value: _organization,
-                options: _organizations,
-                onChanged: (value) => setState(() => _organization = value),
-              ),
-              const SizedBox(height: AppDimensions.spacingMedium),
-              _SelectionField(
-                label: 'Academic department',
-                hint: 'Select your department',
-                icon: Icons.school_outlined,
-                value: _department,
-                options: _departments,
-                onChanged: (value) => setState(() => _department = value),
               ),
               const SizedBox(height: AppDimensions.spacingMedium),
               AppTextField(
@@ -177,13 +287,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: AppDimensions.spacingMedium),
                 Text(
                   _errorMessage!,
-                  style: const TextStyle(color: AppColors.info, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppColors.error,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
               const SizedBox(height: AppDimensions.spacingLarge),
               AppButton(
                 label: 'Create student account',
-                onPressed: _submit,
+                onPressed: _isLoading ? null : _submit,
                 isLoading: _isLoading,
                 expand: true,
               ),
@@ -201,6 +315,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  Widget _buildOrganizationDropdown() {
+    return DropdownButtonFormField<Organization>(
+      initialValue: _selectedOrganization,
+      isExpanded: true,
+      icon: _isLoadingOrgs
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.expand_more_rounded),
+      decoration: const InputDecoration(
+        labelText: 'Organization',
+        hintText: 'Select your organization',
+        prefixIcon: Icon(Icons.account_balance_outlined),
+      ),
+      items: _organizations.map((org) {
+        return DropdownMenuItem<Organization>(
+          value: org,
+          child: Text(
+            org.organizationName,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: _isLoading ? null : _onOrganizationChanged,
+      validator: (selected) =>
+          selected == null ? 'Organization is required' : null,
+    );
+  }
+
+  Widget _buildDepartmentDropdown() {
+    final hint = _selectedOrganization == null
+        ? 'Select organization first'
+        : (_isLoadingDepts
+            ? 'Loading departments...'
+            : (_departments.isEmpty
+                ? 'No departments available'
+                : 'Select your department'));
+
+    return DropdownButtonFormField<AcademicDepartment>(
+      key: ValueKey('${_selectedOrganization?.organizationId}_${_departments.length}'),
+      initialValue: _selectedDepartment,
+      isExpanded: true,
+      icon: _isLoadingDepts
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.expand_more_rounded),
+      decoration: InputDecoration(
+        labelText: 'Academic department',
+        hintText: hint,
+        prefixIcon: const Icon(Icons.school_outlined),
+      ),
+      items: _departments.map((dept) {
+        return DropdownMenuItem<AcademicDepartment>(
+          value: dept,
+          child: Text(
+            '${dept.departmentName} (${dept.departmentCode})',
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: (_isLoading || _departments.isEmpty)
+          ? null
+          : (value) => setState(() => _selectedDepartment = value),
+      validator: (selected) =>
+          selected == null ? 'Academic department is required' : null,
+    );
+  }
+
   Widget _visibilityButton(bool isObscured, VoidCallback onPressed) {
     return IconButton(
       tooltip: isObscured ? 'Show password' : 'Hide password',
@@ -214,9 +401,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _requiredEmail(String? value) {
     final required = _required(value, 'Email');
     if (required != null) return required;
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value!.trim())
-        ? null
-        : 'Enter a valid email address';
+    final email = value!.trim();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      return 'Enter a valid email address';
+    }
+    if (_selectedOrganization?.emailDomain != null) {
+      final domain = _selectedOrganization!.emailDomain!.toLowerCase();
+      if (!email.toLowerCase().endsWith('@$domain')) {
+        return 'Email must belong to @$domain';
+      }
+    }
+    return null;
   }
 
   String? _phoneValidator(String? value) {
@@ -234,6 +429,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _required(String? value, String label) {
     return value == null || value.trim().isEmpty ? '$label is required' : null;
+  }
+
+  String _firebaseErrorMessage(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'An account already exists for this email address.';
+      case 'invalid-email':
+        return 'The email address is invalid.';
+      case 'weak-password':
+        return 'Password is too weak. Please use at least 8 characters.';
+      case 'operation-not-allowed':
+        return 'Student registration is temporarily unavailable.';
+      case 'network-request-failed':
+        return 'Unable to connect. Please check your network connection.';
+      default:
+        return 'Registration failed ($code). Please try again.';
+    }
   }
 }
 
@@ -262,46 +474,6 @@ class _StudentRoleNote extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SelectionField extends StatelessWidget {
-  const _SelectionField({
-    required this.label,
-    required this.hint,
-    required this.icon,
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String hint;
-  final IconData icon;
-  final String? value;
-  final List<String> options;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      isExpanded: true,
-      icon: const Icon(Icons.expand_more_rounded),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon),
-      ),
-      items: options
-          .map(
-            (option) =>
-                DropdownMenuItem<String>(value: option, child: Text(option)),
-          )
-          .toList(),
-      onChanged: onChanged,
-      validator: (selected) => selected == null ? '$label is required' : null,
     );
   }
 }

@@ -70,6 +70,12 @@ class User(BaseModel, CreatedAtMixin):
 			"user_id": self.user_id,
 			"organization_id": self.organization_id,
 			"department_id": self.department_id,
+			"academic_department_id": self.academic_department_id,
+			"academic_department_name": (
+				self.academic_department.department_name
+				if self.academic_department
+				else None
+			),
 			"full_name": self.full_name,
 			"usn_or_employee_id": self.usn_or_employee_id,
 			"email": self.email,

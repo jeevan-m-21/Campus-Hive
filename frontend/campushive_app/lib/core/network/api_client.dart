@@ -12,15 +12,19 @@ class ApiClient {
 
   Future<Map<String, dynamic>> get(
     String path, {
-    required String idToken,
+    String? idToken,
     Map<String, String>? queryParameters,
   }) async {
     final uri = Uri.parse(
       '${AppConstants.apiBaseUrl}$path',
     ).replace(queryParameters: queryParameters);
+    final headers = <String, String>{};
+    if (idToken != null && idToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $idToken';
+    }
     final response = await _client.get(
       uri,
-      headers: {'Authorization': 'Bearer $idToken'},
+      headers: headers,
     );
 
     return _decodeResponse(response);

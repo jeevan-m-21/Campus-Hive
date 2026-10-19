@@ -230,11 +230,30 @@ class AuthService:
         firebase_uid = claims['firebase_uid']
 
         email = AuthService._extract_claim_value(claims, 'email')
-
         if not email:
             raise ValidationError("Firebase token does not contain an email address.")
 
+        # Public self-registration always creates the STUDENT role.
+        requested_role = (
+            role or AuthService._extract_claim_value(claims, 'role', 'user_role')
+        )
+        if requested_role:
+            normalized_role = str(requested_role).strip().upper()
+            if normalized_role != 'STUDENT':
+                raise ValidationError(
+                    'Self-registration is only allowed for the STUDENT role.'
+                )
+        resolved_role = 'STUDENT'
+
         resolved_organization_id = AuthService._resolve_organization_id(organization_id, claims)
+        organization = Organization.query.filter_by(
+            organization_id=resolved_organization_id
+        ).first()
+        if organization is None:
+            raise ValidationError("Organization not found.")
+        if not organization.is_active:
+            raise ValidationError("Organization is inactive.")
+
         try:
             resolved_academic_department_id = (
                 int(academic_department_id)
@@ -245,57 +264,69 @@ class AuthService:
             raise ValidationError(
                 "academic_department_id must be an integer."
             )
-        resolved_department_id = AuthService._resolve_department_id(department_id, claims)
-        resolved_role = AuthService._normalize_role(role or AuthService._extract_claim_value(claims, 'role', 'user_role'))
-        
-        organization = Organization.query.filter_by(
-            organization_id=resolved_organization_id
+
+        if resolved_academic_department_id is None:
+            raise ValidationError("academic_department_id is required.")
+
+        academic_department = AcademicDepartment.query.filter_by(
+            academic_department_id=resolved_academic_department_id,
+            organization_id=resolved_organization_id,
         ).first()
-        if organization is None:
-            raise ValidationError("Organization not found.")
-        
-        if resolved_academic_department_id is not None:
-            academic_department = AcademicDepartment.query.filter_by(
-                academic_department_id=resolved_academic_department_id,
-                organization_id=resolved_organization_id,
-            ).first()
 
-            if academic_department is None:
-                raise ValidationError(
-                    "Academic department not found for this organization."
-                )
-        # Verify email belongs to organization
+        if academic_department is None or not academic_department.is_active:
+            raise ValidationError(
+                "Academic department not found for this organization."
+            )
+
+        # Verify email belongs to organization if domain configured
         email_domain = email.split("@")[-1].lower()
-
         if organization.email_domain:
             if email_domain != organization.email_domain.lower():
                 raise ValidationError(
                     f"Please register using your {organization.email_domain} email address."
                 )
 
-        if resolved_department_id is not None:
-            department = Department.query.filter_by(
-                department_id=resolved_department_id,
-                organization_id=resolved_organization_id
-            ).first()
-        
-            if department is None:
-                raise ValidationError("Department not found for this organization.")
-        
-        resolved_full_name = full_name or AuthService._extract_claim_value(claims, 'name', 'full_name') or email
-        resolved_usn_or_employee_id = usn_or_employee_id or AuthService._extract_claim_value(
-            claims,
-            'usn_or_employee_id',
-            'employee_id',
-            'student_id',
+        resolved_department_id = None
+
+        resolved_full_name = (
+            full_name
+            or AuthService._extract_claim_value(claims, 'name', 'full_name')
+            or ''
+        ).strip()
+        if not resolved_full_name:
+            raise ValidationError("Full name is required.")
+
+        raw_identifier = (
+            usn_or_employee_id
+            or AuthService._extract_claim_value(
+                claims,
+                'usn_or_employee_id',
+                'employee_id',
+                'student_id',
+            )
         )
+        if not raw_identifier or not str(raw_identifier).strip():
+            raise ValidationError("USN or student identifier is required.")
+        resolved_usn_or_employee_id = str(raw_identifier).strip()
+
+        # Check duplicate identifier within the organization
+        duplicate_identifier = User.query.filter(
+            User.organization_id == resolved_organization_id,
+            db.func.lower(User.usn_or_employee_id) == resolved_usn_or_employee_id.lower(),
+            User.firebase_uid != firebase_uid,
+        ).first()
+        if duplicate_identifier is not None:
+            raise ConflictError("A user with this USN or student identifier already exists.")
+
         resolved_phone = phone or AuthService._extract_claim_value(claims, 'phone_number', 'phone')
         resolved_profile_image = profile_image or AuthService._extract_claim_value(claims, 'picture', 'profile_image')
 
         user = User.query.filter_by(firebase_uid=firebase_uid).first()
 
         if user is None:
-            existing_email = User.query.filter_by(email=email).first()
+            existing_email = User.query.filter(
+                db.func.lower(User.email) == email.lower(),
+            ).first()
             if existing_email is not None:
                 raise ConflictError('A user with this email already exists.')
 
@@ -314,6 +345,13 @@ class AuthService:
             )
             db.session.add(user)
         else:
+            existing_email = User.query.filter(
+                db.func.lower(User.email) == email.lower(),
+                User.user_id != user.user_id,
+            ).first()
+            if existing_email is not None:
+                raise ConflictError('A user with this email already exists.')
+
             user.organization_id = resolved_organization_id
             user.academic_department_id = resolved_academic_department_id
             user.department_id = resolved_department_id

@@ -4,6 +4,8 @@ import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
 import '../core/network/api_exception.dart';
 import '../core/storage/secure_storage.dart';
+import '../models/academic_department.dart';
+import '../models/organization.dart';
 
 class AuthSession {
   const AuthSession({required this.user, required this.role});
@@ -29,6 +31,126 @@ class AuthService {
 
   static const inactivityDuration = Duration(days: 3);
   static const maxSessionDuration = Duration(days: 7);
+
+  Future<List<Organization>> getPublicOrganizations() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.publicOrganizations);
+      final data = response['data'];
+      if (data is! List) return const [];
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(Organization.fromJson)
+          .toList();
+    } on ApiException catch (error) {
+      throw AuthException(_backendMessage(error));
+    } catch (_) {
+      throw const AuthNetworkException(
+        'Unable to load organizations. Please check your connection.',
+      );
+    }
+  }
+
+  Future<List<AcademicDepartment>> getAcademicDepartments(
+    int organizationId,
+  ) async {
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.academicDepartments(organizationId),
+      );
+      final data = response['data'];
+      if (data is! List) return const [];
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(AcademicDepartment.fromJson)
+          .toList();
+    } on ApiException catch (error) {
+      throw AuthException(_backendMessage(error));
+    } catch (_) {
+      throw const AuthNetworkException(
+        'Unable to load departments. Please check your connection.',
+      );
+    }
+  }
+
+  Future<AuthSession> register({
+    required String email,
+    required String password,
+    required String fullName,
+    required String identifier,
+    required String phone,
+    required int organizationId,
+    required int academicDepartmentId,
+  }) async {
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    final firebaseUser = credential.user;
+    if (firebaseUser == null) {
+      throw const AuthException('Unable to complete Firebase registration.');
+    }
+
+    final idToken = await firebaseUser.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      await _cleanupCreatedFirebaseUser(firebaseUser);
+      throw const AuthException('Unable to obtain Firebase ID token.');
+    }
+
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.register,
+        idToken: idToken,
+        body: {
+          'organization_id': organizationId,
+          'academic_department_id': academicDepartmentId,
+          'full_name': fullName,
+          'usn_or_employee_id': identifier,
+          'phone': phone,
+          'role': 'STUDENT',
+        },
+      );
+      final data = response['data'];
+      final user = data is Map<String, dynamic> ? data['user'] : null;
+      if (user is! Map<String, dynamic>) {
+        throw const AuthException(
+          'The server returned an invalid user session.',
+        );
+      }
+
+      final role = user['role'];
+      if (role is! String || role.isEmpty) {
+        throw const AuthException('The server returned an invalid user role.');
+      }
+
+      final nowUtc = DateTime.now().toUtc();
+      await _secureStorage.writeSession(
+        idToken: idToken,
+        user: user,
+        sessionCreatedAt: nowUtc,
+        lastActiveAt: nowUtc,
+      );
+      return AuthSession(user: user, role: role);
+    } on ApiException catch (error) {
+      await _cleanupCreatedFirebaseUser(firebaseUser);
+      throw AuthException(_backendMessage(error));
+    } catch (e) {
+      await _cleanupCreatedFirebaseUser(firebaseUser);
+      if (e is AuthException) rethrow;
+      throw const AuthException(
+        'Unable to complete registration. Please try again.',
+      );
+    }
+  }
+
+  Future<void> _cleanupCreatedFirebaseUser(User firebaseUser) async {
+    try {
+      await firebaseUser.delete();
+    } catch (_) {
+      try {
+        await _auth.signOut();
+      } catch (_) {}
+    }
+  }
 
   Future<AuthSession> login({
     required String email,

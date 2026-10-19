@@ -9,11 +9,21 @@ import 'package:campushive_app/services/auth_service.dart';
 import '../core/storage/secure_storage_test.dart';
 
 class FakeApiClient extends ApiClient {
-  FakeApiClient({this.getResponse, this.getException});
+  FakeApiClient({
+    this.getResponse,
+    this.getException,
+    this.postResponse,
+    this.postException,
+  });
 
   Map<String, dynamic>? getResponse;
   ApiException? getException;
   int getCallCount = 0;
+
+  Map<String, dynamic>? postResponse;
+  ApiException? postException;
+  int postCallCount = 0;
+  Map<String, dynamic>? lastPostBody;
 
   @override
   Future<Map<String, dynamic>> get(
@@ -25,6 +35,18 @@ class FakeApiClient extends ApiClient {
     if (getException != null) throw getException!;
     return getResponse ?? {};
   }
+
+  @override
+  Future<Map<String, dynamic>> post(
+    String path, {
+    required String idToken,
+    required Map<String, dynamic> body,
+  }) async {
+    postCallCount++;
+    lastPostBody = body;
+    if (postException != null) throw postException!;
+    return postResponse ?? {};
+  }
 }
 
 class FakeUser implements User {
@@ -32,12 +54,27 @@ class FakeUser implements User {
 
   final String token;
   final bool throwOnToken;
+  int deleteCallCount = 0;
 
   @override
   Future<String> getIdToken([bool forceRefresh = false]) async {
     if (throwOnToken) throw Exception('Firebase token error');
     return token;
   }
+
+  @override
+  Future<void> delete() async {
+    deleteCallCount++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeUserCredential implements UserCredential {
+  FakeUserCredential(this.user);
+  @override
+  final User? user;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -49,6 +86,22 @@ class FakeFirebaseAuth implements FirebaseAuth {
   @override
   User? currentUser;
   int signOutCount = 0;
+  bool throwOnCreate = false;
+  FakeUser? createdUser;
+
+  @override
+  Future<UserCredential> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    if (throwOnCreate) {
+      throw FirebaseAuthException(code: 'email-already-in-use');
+    }
+    final user = FakeUser();
+    createdUser = user;
+    currentUser = user;
+    return FakeUserCredential(user);
+  }
 
   @override
   Future<void> signOut() async {
@@ -327,5 +380,133 @@ void main() {
         expect(fakeApiClient.getCallCount, 1); // Only called once!
       },
     );
+  });
+
+  group('AuthService Student Registration Tests', () {
+    late FakeFlutterSecureStorage fakeStorageImpl;
+    late SecureStorage secureStorage;
+    late FakeApiClient fakeApiClient;
+    late FakeFirebaseAuth fakeAuth;
+    late AuthService authService;
+
+    setUp(() {
+      fakeStorageImpl = FakeFlutterSecureStorage();
+      secureStorage = SecureStorage(storage: fakeStorageImpl);
+      fakeApiClient = FakeApiClient();
+      fakeAuth = FakeFirebaseAuth();
+      authService = AuthService(
+        firebaseAuth: fakeAuth,
+        apiClient: fakeApiClient,
+        secureStorage: secureStorage,
+      );
+    });
+
+    test('getPublicOrganizations parses active organizations successfully', () async {
+      fakeApiClient.getResponse = {
+        'data': [
+          {
+            'organization_id': 1,
+            'organization_name': 'KS Institute of Technology',
+            'organization_code': 'KSIT',
+            'email_domain': 'ksit.edu.in',
+          }
+        ]
+      };
+
+      final orgs = await authService.getPublicOrganizations();
+      expect(orgs.length, 1);
+      expect(orgs.first.organizationId, 1);
+      expect(orgs.first.organizationName, 'KS Institute of Technology');
+      expect(orgs.first.emailDomain, 'ksit.edu.in');
+    });
+
+    test('getAcademicDepartments parses departments for an organization', () async {
+      fakeApiClient.getResponse = {
+        'data': [
+          {
+            'academic_department_id': 1,
+            'organization_id': 1,
+            'department_name': 'Computer Science & Engineering',
+            'department_code': 'CSE',
+          }
+        ]
+      };
+
+      final depts = await authService.getAcademicDepartments(1);
+      expect(depts.length, 1);
+      expect(depts.first.academicDepartmentId, 1);
+      expect(depts.first.departmentCode, 'CSE');
+    });
+
+    test('register creates account, calls backend, and writes session', () async {
+      fakeApiClient.postResponse = {
+        'data': {
+          'user': {
+            'user_id': 10,
+            'role': 'STUDENT',
+            'email': 'newstudent@ksit.edu.in',
+            'full_name': 'New Student',
+            'usn_or_employee_id': '1KS23CS099',
+            'academic_department_id': 1,
+            'academic_department_name': 'Computer Science & Engineering',
+          }
+        }
+      };
+
+      final session = await authService.register(
+        email: 'newstudent@ksit.edu.in',
+        password: 'securePassword123',
+        fullName: 'New Student',
+        identifier: '1KS23CS099',
+        phone: '9876543210',
+        organizationId: 1,
+        academicDepartmentId: 1,
+      );
+
+      expect(session.role, 'STUDENT');
+      expect(session.user['user_id'], 10);
+      expect(fakeApiClient.postCallCount, 1);
+      expect(fakeApiClient.lastPostBody?['role'], 'STUDENT');
+      expect(fakeApiClient.lastPostBody?['usn_or_employee_id'], '1KS23CS099');
+
+      final storedSession = await secureStorage.readSession();
+      expect(storedSession, isNotNull);
+      expect(storedSession?.role, 'STUDENT');
+    });
+
+    test('register cleans up Firebase user and deletes it when backend fails', () async {
+      fakeApiClient.postException = const ApiException(
+        statusCode: 409,
+        code: 'conflict',
+        message: 'A user with this USN or student identifier already exists.',
+      );
+
+      expect(
+        () => authService.register(
+          email: 'duplicate@ksit.edu.in',
+          password: 'securePassword123',
+          fullName: 'Duplicate Student',
+          identifier: '1KS23CS010',
+          phone: '9876543210',
+          organizationId: 1,
+          academicDepartmentId: 1,
+        ),
+        throwsA(
+          isA<AuthException>().having(
+            (e) => e.message,
+            'message',
+            'A user with this USN or student identifier already exists.',
+          ),
+        ),
+      );
+
+      // Verify that the created Firebase user was cleaned up and deleted
+      await pumpEventQueue();
+      expect(fakeAuth.createdUser?.deleteCallCount, 1);
+
+      // Ensure no session was written to secure storage
+      final storedSession = await secureStorage.readSession();
+      expect(storedSession, isNull);
+    });
   });
 }
