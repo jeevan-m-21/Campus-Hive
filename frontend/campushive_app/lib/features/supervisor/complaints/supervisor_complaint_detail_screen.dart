@@ -7,9 +7,12 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/status_history_timeline.dart';
 import '../../../models/complaint.dart';
 import '../../../models/complaint_comment.dart';
+import '../../../models/complaint_status_history.dart';
 import '../../../providers/supervisor_complaint_provider.dart';
+import '../../../services/complaint_service.dart';
 import '../../student/home/widgets/feed_card_shell.dart';
 import '../widgets/supervisor_app_bar.dart';
 
@@ -26,6 +29,10 @@ class SupervisorComplaintDetailScreen extends StatefulWidget {
 class _SupervisorComplaintDetailScreenState
     extends State<SupervisorComplaintDetailScreen> {
   final _commentController = TextEditingController();
+  final _complaintService = ComplaintService();
+  List<ComplaintStatusHistory> _history = const [];
+  bool _isHistoryLoading = true;
+  String? _historyError;
   bool _isSendingComment = false;
   bool _isUpdatingStatus = false;
 
@@ -36,7 +43,26 @@ class _SupervisorComplaintDetailScreenState
       final provider = context.read<SupervisorComplaintProvider>();
       provider.getOrFetchComplaint(widget.complaintId);
       provider.loadComments(widget.complaintId, refresh: true);
+      _loadHistory();
     });
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isHistoryLoading = true;
+      _historyError = null;
+    });
+    try {
+      final history =
+          await _complaintService.fetchStatusHistory(widget.complaintId);
+      if (mounted) setState(() => _history = history);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _historyError = 'Unable to load status history.');
+      }
+    } finally {
+      if (mounted) setState(() => _isHistoryLoading = false);
+    }
   }
 
   @override
@@ -80,6 +106,7 @@ class _SupervisorComplaintDetailScreenState
                   await Future.wait([
                     provider.getOrFetchComplaint(widget.complaintId),
                     provider.loadComments(widget.complaintId, refresh: true),
+                    _loadHistory(),
                   ]);
                 },
                 child: ListView(
@@ -103,6 +130,13 @@ class _SupervisorComplaintDetailScreenState
                           _quickUpdateStatus(complaint, status),
                       onFullUpdate: () =>
                           _showStatusUpdateDialog(context, complaint),
+                    ),
+                    const SizedBox(height: AppDimensions.spacingLarge),
+                    StatusHistoryTimeline(
+                      history: _history,
+                      isLoading: _isHistoryLoading,
+                      errorMessage: _historyError,
+                      onRetry: _loadHistory,
                     ),
                     const SizedBox(height: AppDimensions.spacingLarge),
                     _CommentsSection(
@@ -148,6 +182,7 @@ class _SupervisorComplaintDetailScreenState
     setState(() => _isUpdatingStatus = true);
     try {
       await provider.updateComplaint(complaint.complaintId, status: newStatus);
+      await _loadHistory();
       messenger.showSnackBar(
         SnackBar(content: Text('Status updated to $newStatus')),
       );

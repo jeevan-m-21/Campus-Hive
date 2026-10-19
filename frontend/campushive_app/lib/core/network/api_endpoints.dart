@@ -1,8 +1,15 @@
 abstract final class ApiEndpoints {
   static const login = '/auth/login';
+  static const register = '/auth/register';
   static const me = '/auth/me';
+  static const publicOrganizations = '/organizations/public';
+  static String academicDepartments(int organizationId) =>
+      '/organizations/$organizationId/academic-departments';
   static const complaints = '/complaints';
   static const complaintDepartments = '/complaints/departments';
+  static const complaintSupervisors = '$complaints/supervisors';
+  static String designateDepartmentSupervisor(int departmentId) =>
+      '$complaintDepartments/$departmentId/supervisor';
   static const uploadComplaintImage = '/complaints/upload-image';
   static const uploadAnnouncementAttachment =
       '/announcements/upload-attachment';
@@ -24,6 +31,15 @@ abstract final class ApiEndpoints {
 
   static String addComplaintComment(int complaintId) =>
       '$complaints/$complaintId/comments';
+
+  static String complaintHistory(int complaintId) =>
+      '$complaints/$complaintId/history';
+
+  static String studentFeedback(int complaintId) =>
+      '$complaints/$complaintId/feedback';
+
+  static String reopenComplaint(int complaintId) =>
+      '$complaints/$complaintId/reopen';
 
   static String likeAnnouncement(int announcementId) =>
       '$announcements/$announcementId/like';

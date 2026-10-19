@@ -68,6 +68,11 @@ class Complaint(BaseModel, TimestampMixin):
         "Department",
         back_populates="complaints"
     )
+
+    @property
+    def category(self):
+        return self.department.department_name if self.department else None
+
     def to_dict(self):
         return {
             "complaint_id": self.complaint_id,
@@ -91,6 +96,8 @@ class Complaint(BaseModel, TimestampMixin):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "student_name": self.student.full_name if self.student else None,
             "department_name": self.department.department_name if self.department else None,
+            "category": self.department.department_name if self.department else None,
+            "supervisor_name": self.supervisor.full_name if self.supervisor else None,
         }
 
     def __repr__(self):

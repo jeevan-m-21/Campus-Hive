@@ -7,6 +7,7 @@ from flask import Blueprint, current_app, g, request
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintImage, ComplaintStatusHistory, Department, User
+from app.services.assignment_service import AssignmentService
 from app.services.notification_service import NotificationService, NotificationServiceError
 from app.services.priority_service import PriorityService
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
@@ -20,6 +21,7 @@ _PRIORITY_VALUES = {'LOW', 'MEDIUM', 'HIGH'}
 _FEEDBACK_VALUES = {'SATISFIED', 'NOT_SATISFIED'}
 _ALLOWED_CREATE_ROLES = {'STUDENT'}
 _ALLOWED_UPDATE_ROLES = {'SUPER_ADMIN', 'ORG_ADMIN', 'SUPERVISOR'}
+_ALLOWED_ASSIGNMENT_ROLES = {'SUPER_ADMIN', 'ORG_ADMIN'}
 
 
 def _normalize_value(value):
@@ -33,10 +35,13 @@ def _get_request_data():
 
 
 def _get_complaint_or_404(complaint_id):
-    complaint = Complaint.query.filter_by(
-        complaint_id=complaint_id,
-        organization_id=g.current_user.organization_id,
-    ).first()
+    if hasattr(g, 'current_user') and g.current_user and g.current_user.role.upper() == 'SUPER_ADMIN':
+        complaint = Complaint.query.filter_by(complaint_id=complaint_id).first()
+    else:
+        complaint = Complaint.query.filter_by(
+            complaint_id=complaint_id,
+            organization_id=g.current_user.organization_id,
+        ).first()
 
     if complaint is None:
         return None, error_response('not_found', 'Complaint not found', 404)
@@ -84,6 +89,108 @@ def get_complaint_departments():
     )
 
 
+@complaint_bp.route('/supervisors', methods=['GET'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPER_ADMIN')
+def list_supervisors():
+    """List active supervisors for the current user's organization."""
+    query = User.query.filter_by(
+        organization_id=g.current_user.organization_id,
+        role='SUPERVISOR',
+        is_active=True,
+    )
+    department_id = request.args.get('department_id')
+    if department_id:
+        try:
+            query = query.filter_by(department_id=int(department_id))
+        except (TypeError, ValueError):
+            return error_response('validation_error', 'department_id must be an integer', 400)
+
+    supervisors = query.order_by(User.full_name.asc()).all()
+    data = [
+        {
+            'user_id': s.user_id,
+            'full_name': s.full_name,
+            'email': s.email,
+            'department_id': s.department_id,
+            'department_name': s.department.department_name if s.department else None,
+            'phone': s.phone,
+            'is_active': bool(s.is_active),
+        }
+        for s in supervisors
+    ]
+    return success_response(data, 'Supervisors retrieved successfully', 200)
+
+
+@complaint_bp.route('/departments/<int:department_id>/supervisor', methods=['POST'])
+@complaint_bp.route('/departments/designate-supervisor', methods=['POST'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPER_ADMIN')
+def designate_department_supervisor(department_id=None):
+    """Designate a supervisor for a department and auto-assign pending complaints."""
+    payload = _get_request_data()
+    if department_id is None:
+        department_id = payload.get('department_id')
+
+    if department_id in (None, ''):
+        return error_response('validation_error', 'department_id is required', 400)
+    try:
+        department_id = int(department_id)
+    except (TypeError, ValueError):
+        return error_response('validation_error', 'department_id must be an integer', 400)
+
+    supervisor_id = payload.get('supervisor_id')
+    if supervisor_id in (None, ''):
+        return error_response('validation_error', 'supervisor_id is required', 400)
+    try:
+        supervisor_id = int(supervisor_id)
+    except (TypeError, ValueError):
+        return error_response('validation_error', 'supervisor_id must be an integer', 400)
+
+    department = Department.query.filter_by(
+        department_id=department_id,
+        organization_id=g.current_user.organization_id,
+    ).first()
+    if department is None:
+        return error_response('not_found', 'Department not found for this organization', 404)
+
+    supervisor = User.query.filter_by(
+        user_id=supervisor_id,
+        organization_id=g.current_user.organization_id,
+        role='SUPERVISOR',
+        is_active=True,
+    ).first()
+    if supervisor is None:
+        return error_response('not_found', 'Supervisor not found for this organization', 404)
+
+    try:
+        assigned_complaints = AssignmentService.designate_department_supervisor(
+            department=department,
+            supervisor=supervisor,
+            admin_user=g.current_user,
+        )
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return error_response('validation_error', str(exc), 400)
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return success_response(
+        {
+            'department_id': department.department_id,
+            'department_name': department.department_name,
+            'supervisor_id': supervisor.user_id,
+            'supervisor_name': supervisor.full_name,
+            'assigned_complaints_count': len(assigned_complaints),
+            'assigned_complaint_ids': [c.complaint_id for c in assigned_complaints],
+        },
+        'Supervisor designated for department successfully',
+        200,
+    )
+
+
 @complaint_bp.route('/upload-image', methods=['POST'])
 @firebase_login_required
 @role_required()
@@ -116,7 +223,7 @@ def upload_complaint_image():
 @firebase_login_required
 @role_required()
 def create_complaint():
-    """Create a new complaint."""
+    """Create a new complaint with automatic category-based supervisor assignment."""
 
     if g.current_user.role.upper() not in _ALLOWED_CREATE_ROLES:
         return error_response('forbidden', 'Only students can create complaints', 403)
@@ -124,43 +231,32 @@ def create_complaint():
     payload = _get_request_data()
 
     department_id = payload.get('department_id')
+    category = payload.get('category')
     title = (payload.get('title') or '').strip()
     description = (payload.get('description') or '').strip()
     location = payload.get('location')
     image_url = (payload.get('image_url') or '').strip() or None
-
-    if department_id in (None, ''):
-        return error_response('validation_error', 'department_id is required', 400)
-    try:
-        department_id = int(department_id)
-    except (TypeError, ValueError):
-        return error_response('validation_error', 'department_id must be an integer', 400)
 
     if not title:
         return error_response('validation_error', 'title is required', 400)
     if not description:
         return error_response('validation_error', 'description is required', 400)
 
-    department = Department.query.filter_by(
+    department = AssignmentService.resolve_department(
+        g.current_user.organization_id,
         department_id=department_id,
-        organization_id=g.current_user.organization_id,
-    ).first()
+        category=category,
+    )
     if department is None:
-        return error_response('not_found', 'Department not found for this organization', 404)
-    
-    # Find the active supervisor for this department
-    supervisor = User.query.filter_by(
-        organization_id=g.current_user.organization_id,
-        department_id=department.department_id,
-        role='SUPERVISOR',
-        is_active=True,
-    ).first()
+        if department_id in (None, '') and not category:
+            return error_response('validation_error', 'department_id or category is required', 400)
+        return error_response('not_found', 'Department or category not found for this organization', 404)
 
     complaint = Complaint(
         organization_id=g.current_user.organization_id,
         student_id=g.current_user.user_id,
-        department_id=department_id,
-        supervisor_id=supervisor.user_id if supervisor else None,
+        department_id=department.department_id,
+        supervisor_id=None,
         title=title,
         description=description,
         location=location,
@@ -168,11 +264,6 @@ def create_complaint():
         final_priority=None,
         status='PENDING',
     )
-
-    if complaint.ml_priority is not None and complaint.ml_priority not in _PRIORITY_VALUES:
-        return error_response('validation_error', 'Invalid ml_priority value', 400)
-    if complaint.final_priority is not None and complaint.final_priority not in _PRIORITY_VALUES:
-        return error_response('validation_error', 'Invalid final_priority value', 400)
 
     db.session.add(complaint)
 
@@ -187,22 +278,18 @@ def create_complaint():
         complaint.support_count = 0
         PriorityService.update_complaint_priority(complaint, recalculate_ml=True)
 
+        # Automatic category-based supervisor assignment
+        supervisor = AssignmentService.auto_assign_complaint(complaint, department)
+
         NotificationService.create_notification(
             complaint.student_id,
             'Complaint Submitted',
-            'Your complaint has been submitted successfully.',
+            'Your complaint has been submitted and assigned to a supervisor.'
+            if supervisor is not None
+            else 'Your complaint has been submitted successfully.',
             'COMPLAINT',
             complaint.complaint_id,
         )
-
-        if supervisor is not None:
-            NotificationService.create_notification(
-                supervisor.user_id,
-                'New Complaint Assigned',
-                f'A new complaint "{complaint.title}" has been assigned to you.',
-                'COMPLAINT',
-                complaint.complaint_id,
-            )
 
         db.session.commit()
     except NotificationServiceError as exc:
@@ -323,19 +410,66 @@ def update_complaint(complaint_id):
     if error:
         return error
 
+    if g.current_user.role.upper() == 'SUPERVISOR' and complaint.supervisor_id != g.current_user.user_id:
+        return error_response('forbidden', 'You can only update complaints assigned to you', 403)
+
     old_status = complaint.status
     old_supervisor_id = complaint.supervisor_id
     old_description = complaint.description
     old_department_id = complaint.department_id
 
+    # 1. Process supervisor assignment/unassignment if requested by admin
+    if 'supervisor_id' in payload:
+        if g.current_user.role.upper() not in _ALLOWED_ASSIGNMENT_ROLES:
+            return error_response('forbidden', 'Only organization administrators can assign or unassign supervisors', 403)
+
+        supervisor_id = payload.get('supervisor_id')
+        if supervisor_id in (None, ''):
+            AssignmentService.unassign_supervisor(complaint, g.current_user)
+        else:
+            try:
+                supervisor_id = int(supervisor_id)
+            except (TypeError, ValueError):
+                return error_response('validation_error', 'supervisor_id must be an integer', 400)
+
+            supervisor = User.query.filter_by(
+                user_id=supervisor_id,
+                organization_id=g.current_user.organization_id,
+                role='SUPERVISOR',
+                is_active=True,
+            ).first()
+            if supervisor is None:
+                return error_response('not_found', 'Supervisor not found for this organization', 404)
+
+            try:
+                AssignmentService.manual_assign_supervisor(complaint, supervisor, g.current_user)
+            except ValueError as exc:
+                return error_response('validation_error', str(exc), 400)
+            except PermissionError as exc:
+                return error_response('forbidden', str(exc), 403)
+
+    # 2. Process explicit status update
+    status_changed = False
     if 'status' in payload:
         normalized_status = _normalize_value(payload.get('status'))
         if normalized_status not in _STATUS_VALUES:
             return error_response('validation_error', 'Invalid status value', 400)
         if normalized_status != complaint.status:
+            status_before = complaint.status
             complaint.status = normalized_status
             if normalized_status == 'RESOLVED' and complaint.resolved_at is None:
                 complaint.resolved_at = datetime.utcnow()
+
+            remarks = payload.get('remarks') or payload.get('resolution_notes')
+            status_history = ComplaintStatusHistory(
+                complaint_id=complaint.complaint_id,
+                updated_by=g.current_user.user_id,
+                old_status=status_before,
+                new_status=complaint.status,
+                remarks=remarks,
+            )
+            db.session.add(status_history)
+            status_changed = True
 
     if 'ml_priority' in payload:
         normalized_priority = _normalize_value(payload.get('ml_priority'))
@@ -377,27 +511,6 @@ def update_complaint(complaint_id):
             return error_response('validation_error', 'description cannot be empty', 400)
         complaint.description = description
 
-    if 'supervisor_id' in payload:
-        supervisor_id = payload.get('supervisor_id')
-        if supervisor_id in (None, ''):
-            complaint.supervisor_id = None
-        else:
-            try:
-                supervisor_id = int(supervisor_id)
-            except (TypeError, ValueError):
-                return error_response('validation_error', 'supervisor_id must be an integer', 400)
-
-            supervisor = User.query.filter_by(
-                user_id=supervisor_id,
-                organization_id=g.current_user.organization_id,
-                role='SUPERVISOR',
-                is_active=True,
-            ).first()
-            if supervisor is None:
-                return error_response('not_found', 'Supervisor not found for this organization', 404)
-
-            complaint.supervisor_id = supervisor_id
-
     if 'location' in payload:
         complaint.location = payload.get('location')
 
@@ -415,20 +528,8 @@ def update_complaint(complaint_id):
             return error_response('not_found', 'Department not found for this organization', 404)
         complaint.department_id = department_id
 
-    should_notify_assigned = complaint.supervisor_id != old_supervisor_id and complaint.supervisor_id is not None
-    status_changed = complaint.status != old_status
     description_changed = complaint.description != old_description
     department_changed = complaint.department_id != old_department_id
-
-    if status_changed:
-        status_history = ComplaintStatusHistory(
-            complaint_id=complaint.complaint_id,
-            updated_by=g.current_user.user_id,
-            old_status=old_status,
-            new_status=complaint.status,
-            remarks=payload.get('remarks') or payload.get('resolution_notes'),
-        )
-        db.session.add(status_history)
 
     try:
         if description_changed or department_changed:
@@ -437,29 +538,43 @@ def update_complaint(complaint_id):
                 recalculate_ml=description_changed,
             )
 
-        if should_notify_assigned:
+        if status_changed:
+            if complaint.status == 'RESOLVED':
+                notif_title = 'Complaint Resolved'
+                notif_msg = f'Your complaint "{complaint.title}" has been resolved.'
+            elif complaint.status == 'REOPENED':
+                notif_title = 'Complaint Reopened'
+                notif_msg = f'Your complaint "{complaint.title}" has been reopened.'
+            elif complaint.status == 'IN_PROGRESS':
+                notif_title = 'Complaint In Progress'
+                notif_msg = f'Your complaint "{complaint.title}" is now in progress.'
+            elif complaint.status == 'CLOSED':
+                notif_title = 'Complaint Closed'
+                notif_msg = f'Your complaint "{complaint.title}" has been closed.'
+            elif complaint.status == 'ESCALATED':
+                notif_title = 'Complaint Escalated'
+                notif_msg = f'Your complaint "{complaint.title}" has been escalated.'
+            else:
+                notif_title = 'Complaint Status Updated'
+                notif_msg = f'Your complaint "{complaint.title}" status is now {complaint.status}.'
+
             NotificationService.create_notification(
                 complaint.student_id,
-                'Complaint Assigned',
-                'Your complaint has been assigned to a supervisor.',
+                notif_title,
+                notif_msg,
                 'COMPLAINT',
                 complaint.complaint_id,
             )
 
-        if status_changed:
-            notification_title = 'Complaint Resolved' if complaint.status == 'RESOLVED' else 'Complaint Status Updated'
-            notification_message = (
-                'Your complaint has been resolved.'
-                if complaint.status == 'RESOLVED'
-                else 'Your complaint status has been updated.'
-            )
-            NotificationService.create_notification(
-                complaint.student_id,
-                notification_title,
-                notification_message,
-                'COMPLAINT',
-                complaint.complaint_id,
-            )
+            # If updated by someone other than the assigned supervisor, notify the supervisor
+            if complaint.supervisor_id and complaint.supervisor_id != g.current_user.user_id:
+                NotificationService.create_notification(
+                    complaint.supervisor_id,
+                    f'Complaint Status: {complaint.status}',
+                    f'Complaint "{complaint.title}" status was updated to {complaint.status}.',
+                    'COMPLAINT',
+                    complaint.complaint_id,
+                )
 
         db.session.commit()
     except NotificationServiceError as exc:
@@ -488,6 +603,9 @@ def add_comment(complaint_id):
     complaint, error = _get_complaint_or_404(complaint_id)
     if error:
         return error
+
+    if g.current_user.role.upper() == 'SUPERVISOR' and complaint.supervisor_id != g.current_user.user_id:
+        return error_response('forbidden', 'You can only comment on complaints assigned to you', 403)
     
     # Other students can comment only once.
     # Complaint owner and staff can comment multiple times.
@@ -516,7 +634,8 @@ def add_comment(complaint_id):
     db.session.add(chat_message)
 
     try:
-        if g.current_user.role.upper() == 'SUPERVISOR' and complaint.student_id != g.current_user.user_id:
+        sender_role = g.current_user.role.upper()
+        if sender_role == 'SUPERVISOR' and complaint.student_id != g.current_user.user_id:
             NotificationService.create_notification(
                 complaint.student_id,
                 'New Supervisor Update',
@@ -524,6 +643,31 @@ def add_comment(complaint_id):
                 'COMPLAINT',
                 complaint.complaint_id,
             )
+        elif sender_role == 'STUDENT' and complaint.supervisor_id and complaint.supervisor_id != g.current_user.user_id:
+            NotificationService.create_notification(
+                complaint.supervisor_id,
+                'New Student Comment',
+                f'A student added a comment to complaint "{complaint.title}".',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+        elif sender_role in ('ORG_ADMIN', 'SUPER_ADMIN'):
+            if complaint.student_id != g.current_user.user_id:
+                NotificationService.create_notification(
+                    complaint.student_id,
+                    'New Admin Comment',
+                    f'An administrator added an update to complaint "{complaint.title}".',
+                    'COMPLAINT',
+                    complaint.complaint_id,
+                )
+            if complaint.supervisor_id and complaint.supervisor_id != g.current_user.user_id:
+                NotificationService.create_notification(
+                    complaint.supervisor_id,
+                    'New Admin Comment',
+                    f'An administrator added a comment to complaint "{complaint.title}".',
+                    'COMPLAINT',
+                    complaint.complaint_id,
+                )
 
         db.session.commit()
     except NotificationServiceError as exc:
@@ -591,3 +735,173 @@ def support_complaint(complaint_id):
         'Complaint supported',
         200,
     )
+
+
+@complaint_bp.route('/<int:complaint_id>/history', methods=['GET'])
+@firebase_login_required
+@role_required()
+def get_complaint_history(complaint_id):
+    """Get status history for a complaint."""
+
+    complaint, error = _get_complaint_or_404(complaint_id)
+    if error:
+        return error
+
+    user_role = g.current_user.role.upper()
+    if user_role == 'STUDENT':
+        if complaint.student_id != g.current_user.user_id:
+            return error_response('forbidden', 'You can only view history for your own complaints', 403)
+    elif user_role == 'SUPERVISOR':
+        if complaint.supervisor_id != g.current_user.user_id:
+            return error_response('forbidden', 'You can only view history for complaints assigned to you', 403)
+    elif user_role in ('ORG_ADMIN', 'SUPER_ADMIN'):
+        pass
+    else:
+        return error_response('forbidden', 'You do not have permission to view complaint history', 403)
+
+    history_records = ComplaintStatusHistory.query.filter_by(
+        complaint_id=complaint.complaint_id,
+    ).order_by(ComplaintStatusHistory.updated_at.asc(), ComplaintStatusHistory.history_id.asc()).all()
+
+    return success_response(
+        [record.to_dict() for record in history_records],
+        'Complaint status history retrieved',
+        200,
+    )
+
+
+@complaint_bp.route('/<int:complaint_id>/feedback', methods=['POST'])
+@firebase_login_required
+@role_required('STUDENT')
+def submit_student_feedback(complaint_id):
+    """Submit student satisfaction feedback on a resolved complaint."""
+
+    complaint, error = _get_complaint_or_404(complaint_id)
+    if error:
+        return error
+
+    if complaint.student_id != g.current_user.user_id:
+        return error_response('forbidden', 'You can only submit feedback on your own complaints', 403)
+
+    if complaint.status not in ('RESOLVED', 'CLOSED'):
+        return error_response('validation_error', 'Feedback can only be provided for resolved complaints', 400)
+
+    payload = _get_request_data()
+    feedback = _normalize_value(payload.get('feedback') or payload.get('student_feedback'))
+    if feedback not in _FEEDBACK_VALUES:
+        return error_response('validation_error', 'Invalid feedback value. Must be SATISFIED or NOT_SATISFIED', 400)
+
+    complaint.student_feedback = feedback
+    remarks = (payload.get('remarks') or '').strip()
+
+    if feedback == 'SATISFIED' and complaint.status == 'RESOLVED':
+        old_status = complaint.status
+        complaint.status = 'CLOSED'
+        history = ComplaintStatusHistory(
+            complaint_id=complaint.complaint_id,
+            updated_by=g.current_user.user_id,
+            old_status=old_status,
+            new_status='CLOSED',
+            remarks=remarks or 'Student accepted resolution. Complaint closed.',
+        )
+        db.session.add(history)
+
+        if complaint.supervisor_id:
+            NotificationService.create_notification(
+                complaint.supervisor_id,
+                'Complaint Closed',
+                f'Student marked complaint "{complaint.title}" as satisfied. Ticket closed.',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+
+    try:
+        db.session.commit()
+    except NotificationServiceError as exc:
+        db.session.rollback()
+        return error_response(exc.error_code, exc.message, exc.status_code)
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return success_response(_serialize_complaint(complaint), 'Feedback submitted successfully', 200)
+
+
+@complaint_bp.route('/<int:complaint_id>/reopen', methods=['POST'])
+@firebase_login_required
+@role_required('STUDENT')
+def reopen_complaint(complaint_id):
+    """Request complaint reopening by the student."""
+
+    complaint, error = _get_complaint_or_404(complaint_id)
+    if error:
+        return error
+
+    if complaint.student_id != g.current_user.user_id:
+        return error_response('forbidden', 'You can only reopen your own complaints', 403)
+
+    if complaint.status not in ('RESOLVED', 'CLOSED'):
+        return error_response('validation_error', 'Only resolved or closed complaints can be reopened', 400)
+
+    payload = _get_request_data()
+    remarks = (payload.get('remarks') or payload.get('reason') or '').strip()
+    if not remarks:
+        return error_response('validation_error', 'Remarks explaining why the complaint is being reopened are required', 400)
+
+    old_status = complaint.status
+    complaint.status = 'REOPENED'
+    complaint.student_feedback = 'NOT_SATISFIED'
+
+    history = ComplaintStatusHistory(
+        complaint_id=complaint.complaint_id,
+        updated_by=g.current_user.user_id,
+        old_status=old_status,
+        new_status='REOPENED',
+        remarks=remarks,
+    )
+    db.session.add(history)
+
+    # Notify assigned supervisor
+    if complaint.supervisor_id:
+        NotificationService.create_notification(
+            complaint.supervisor_id,
+            'Complaint Reopened',
+            f'Complaint "{complaint.title}" was reopened by the student: {remarks}',
+            'COMPLAINT',
+            complaint.complaint_id,
+        )
+    else:
+        # Notify org admins if unassigned
+        admins = User.query.filter_by(
+            organization_id=complaint.organization_id,
+            role='ORG_ADMIN',
+            is_active=True,
+        ).all()
+        for admin in admins:
+            NotificationService.create_notification(
+                admin.user_id,
+                'Complaint Reopened',
+                f'Complaint #{complaint.complaint_id} "{complaint.title}" was reopened by the student.',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+
+    # Notify student confirmation
+    NotificationService.create_notification(
+        complaint.student_id,
+        'Complaint Reopened',
+        f'Your complaint "{complaint.title}" has been reopened.',
+        'COMPLAINT',
+        complaint.complaint_id,
+    )
+
+    try:
+        db.session.commit()
+    except NotificationServiceError as exc:
+        db.session.rollback()
+        return error_response(exc.error_code, exc.message, exc.status_code)
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return success_response(_serialize_complaint(complaint), 'Complaint reopened successfully', 200)

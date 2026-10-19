@@ -37,5 +37,17 @@ class ComplaintStatusHistory(BaseModel):
         db.Index('updated_by', 'updated_by'),
     )
 
+    def to_dict(self):
+        return {
+            'history_id': self.history_id,
+            'complaint_id': self.complaint_id,
+            'old_status': self.old_status,
+            'new_status': self.new_status,
+            'remarks': self.remarks,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'updated_by': self.updated_by,
+            'updater_name': self.updated_by_user.full_name if self.updated_by_user else None,
+        }
+
     def __repr__(self):
-        return f'<ComplaintStatusHistory {self.history_id}>'
+        return f'<ComplaintStatusHistory {self.history_id}>'

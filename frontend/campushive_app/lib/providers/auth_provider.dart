@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/academic_department.dart';
+import '../models/organization.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -49,6 +51,43 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _isRestoring = false;
       _restorationFuture = null;
+      notifyListeners();
+    }
+  }
+
+  Future<List<Organization>> getPublicOrganizations() =>
+      _authService.getPublicOrganizations();
+
+  Future<List<AcademicDepartment>> getAcademicDepartments(int organizationId) =>
+      _authService.getAcademicDepartments(organizationId);
+
+  Future<AuthSession> register({
+    required String email,
+    required String password,
+    required String fullName,
+    required String identifier,
+    required String phone,
+    required int organizationId,
+    required int academicDepartmentId,
+  }) async {
+    _isLoading = true;
+    _restoreError = null;
+    notifyListeners();
+    try {
+      final session = await _authService.register(
+        email: email,
+        password: password,
+        fullName: fullName,
+        identifier: identifier,
+        phone: phone,
+        organizationId: organizationId,
+        academicDepartmentId: academicDepartmentId,
+      );
+      _session = session;
+      _isInitialized = true;
+      return session;
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }

@@ -13,35 +13,57 @@ from app.models.department import Department
 class PriorityService:
     """Calculate complaint priority without adding persisted score columns."""
 
-    SUPPORT_CAP = 10
+    SUPPORT_CAP = 30
     ML_SCORES = {'LOW': 0.0, 'MEDIUM': 0.5, 'HIGH': 1.0}
+    PRIORITY_LEVELS = ('LOW', 'MEDIUM', 'HIGH')
+    PRIORITY_RANKS = {level: index for index, level in enumerate(PRIORITY_LEVELS)}
+    RANK_TO_PRIORITY = dict(enumerate(PRIORITY_LEVELS))
+    VOTES_PER_ESCALATION = 10
+    MAX_ESCALATION_STEPS = 2
 
     @staticmethod
     def calculate_support_score(support_count):
-        """Normalize support with a capped logarithmic curve."""
+        """Normalize support count towards full escalation cap (30 votes)."""
         support_count = max(0, int(support_count or 0))
         return min(
             1.0,
-            math.log1p(support_count)
-            / math.log1p(PriorityService.SUPPORT_CAP),
+            support_count / PriorityService.SUPPORT_CAP,
         )
 
     @staticmethod
     def calculate_final_priority(ml_priority, support_count):
-        """Combine ML and community scores with equal weighting."""
-        normalized_priority = str(ml_priority or 'MEDIUM').upper()
-        if normalized_priority not in PriorityService.ML_SCORES:
+        """Calculate final priority based on ML prediction and community votes.
+
+        Escalation policy:
+        - ML prediction establishes the minimum priority floor (LOW, MEDIUM, HIGH).
+        - Community votes can never downgrade the ML priority.
+        - 0–9 votes: no voting-based escalation.
+        - 10–19 votes: escalate by 1 priority level (LOW -> MEDIUM, MEDIUM -> HIGH).
+        - 20+ votes: escalate by up to 2 priority levels (LOW -> HIGH, MEDIUM -> HIGH).
+        - HIGH ML predictions always remain HIGH regardless of vote count.
+        """
+        if not ml_priority or not isinstance(ml_priority, str):
             raise ValueError(f'Unsupported ML priority: {ml_priority}')
 
-        final_score = (
-            PriorityService.ML_SCORES[normalized_priority] * 0.5
-            + PriorityService.calculate_support_score(support_count) * 0.5
+        normalized_priority = ml_priority.strip().upper()
+        if normalized_priority not in PriorityService.PRIORITY_RANKS:
+            raise ValueError(f'Unsupported ML priority: {ml_priority}')
+
+        try:
+            valid_support = max(0, int(support_count or 0))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f'Invalid support_count: {support_count}') from exc
+
+        base_rank = PriorityService.PRIORITY_RANKS[normalized_priority]
+        escalation_steps = min(
+            PriorityService.MAX_ESCALATION_STEPS,
+            valid_support // PriorityService.VOTES_PER_ESCALATION,
         )
-        if final_score <= 0.33:
-            return 'LOW'
-        if final_score <= 0.66:
-            return 'MEDIUM'
-        return 'HIGH'
+        final_rank = min(
+            len(PriorityService.PRIORITY_LEVELS) - 1,
+            base_rank + escalation_steps,
+        )
+        return PriorityService.RANK_TO_PRIORITY[final_rank]
 
     @staticmethod
     def _fallback_priority(description):
@@ -86,11 +108,11 @@ class PriorityService:
     @staticmethod
     def calculate_deadline(complaint, final_priority):
         """Calculate a deadline from the complaint department configuration."""
-        department = Department.query.filter_by(
-            department_id=complaint.department_id,
-        ).first()
-        if department is None:
-            department = complaint.department
+        department = getattr(complaint, 'department', None)
+        if department is None and getattr(complaint, 'department_id', None):
+            department = Department.query.filter_by(
+                department_id=complaint.department_id,
+            ).first()
         hours_by_priority = {
             'HIGH': department.priority_high_hours,
             'MEDIUM': department.priority_medium_hours,

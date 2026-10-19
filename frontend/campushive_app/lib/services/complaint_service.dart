@@ -5,7 +5,9 @@ import '../core/network/api_endpoints.dart';
 import '../core/network/api_exception.dart';
 import '../models/complaint.dart';
 import '../models/complaint_comment.dart';
+import '../models/complaint_status_history.dart';
 import '../models/department.dart';
+import '../models/supervisor.dart';
 
 class ComplaintService {
   ComplaintService({ApiClient? apiClient, FirebaseAuth? firebaseAuth})
@@ -142,6 +144,60 @@ class ComplaintService {
     return ComplaintComment.fromJson(data);
   }
 
+  Future<List<ComplaintStatusHistory>> fetchStatusHistory(int complaintId) async {
+    final response = await _authenticatedGet(
+      ApiEndpoints.complaintHistory(complaintId),
+    );
+    final data = response['data'];
+    if (data is! List) {
+      throw const ComplaintException(
+        'The server returned invalid status history.',
+      );
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(ComplaintStatusHistory.fromJson)
+        .toList();
+  }
+
+  Future<Complaint> submitFeedback(
+    int complaintId,
+    String feedback, {
+    String? remarks,
+  }) async {
+    final response = await _authenticatedPost(
+      ApiEndpoints.studentFeedback(complaintId),
+      body: {
+        'feedback': feedback,
+        if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+      },
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid complaint data.',
+      );
+    }
+    return Complaint.fromJson(data);
+  }
+
+  Future<Complaint> reopenComplaint(
+    int complaintId, {
+    required String remarks,
+  }) async {
+    final response = await _authenticatedPost(
+      ApiEndpoints.reopenComplaint(complaintId),
+      body: {'remarks': remarks},
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid complaint data.',
+      );
+    }
+    return Complaint.fromJson(data);
+  }
+
   Future<List<Department>> fetchDepartments() async {
     final response = await _authenticatedGet(ApiEndpoints.complaintDepartments);
     final data = response['data'];
@@ -154,6 +210,54 @@ class ComplaintService {
         .whereType<Map<String, dynamic>>()
         .map(Department.fromJson)
         .toList();
+  }
+
+  Future<List<Supervisor>> fetchSupervisors({int? departmentId}) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw const ComplaintException('Please sign in again.');
+
+    final idToken = await user.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw const ComplaintException('Please sign in again.');
+    }
+
+    late final Map<String, dynamic> response;
+    try {
+      response = await _apiClient.get(
+        ApiEndpoints.complaintSupervisors,
+        idToken: idToken,
+        queryParameters: {
+          if (departmentId != null) 'department_id': '$departmentId',
+        },
+      );
+    } on ApiException catch (error) {
+      throw ComplaintException(error.message);
+    }
+    final data = response['data'];
+    if (data is! List) {
+      throw const ComplaintException('The server returned invalid supervisors.');
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(Supervisor.fromJson)
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> designateDepartmentSupervisor(
+    int departmentId,
+    int supervisorId,
+  ) async {
+    final response = await _authenticatedPost(
+      ApiEndpoints.designateDepartmentSupervisor(departmentId),
+      body: {'supervisor_id': supervisorId},
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid designation data.',
+      );
+    }
+    return data;
   }
 
   Future<String> uploadImage(String filePath) async {

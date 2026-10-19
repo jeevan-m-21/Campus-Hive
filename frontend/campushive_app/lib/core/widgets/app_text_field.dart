@@ -5,6 +5,7 @@ class AppTextField extends StatelessWidget {
     this.controller,
     this.label,
     this.hint,
+    this.helperText,
     this.prefixIcon,
     this.suffixIcon,
     this.obscureText = false,
@@ -18,6 +19,7 @@ class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
   final String? hint;
+  final String? helperText;
   final IconData? prefixIcon;
   final Widget? suffixIcon;
   final bool obscureText;
@@ -38,6 +40,7 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        helperText: helperText,
         prefixIcon: prefixIcon == null ? null : Icon(prefixIcon),
         suffixIcon: suffixIcon,
       ),
