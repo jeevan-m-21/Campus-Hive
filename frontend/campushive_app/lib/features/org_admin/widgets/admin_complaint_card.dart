@@ -95,56 +95,133 @@ class AdminComplaintCard extends StatelessWidget {
           const SizedBox(height: AppDimensions.spacingMedium),
           const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: AppDimensions.spacingSmall),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.manage_accounts_outlined,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    complaint.supervisorId != null
-                        ? 'Supervisor Assigned'
-                        : 'Unassigned',
-                    style: AppTextStyles.caption.copyWith(
-                      color: complaint.supervisorId != null
-                          ? AppColors.primary
-                          : AppColors.warning,
-                      fontWeight: FontWeight.w700,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final supervisorText = complaint.supervisorName != null
+                  ? 'Supervisor: ${complaint.supervisorName}'
+                  : complaint.supervisorId != null
+                      ? 'Supervisor Assigned'
+                      : 'Unassigned';
+              final supervisorColor = complaint.supervisorId != null
+                  ? AppColors.primary
+                  : AppColors.warning;
+
+              final isNarrow = constraints.maxWidth < 360 &&
+                  complaint.deadline != null;
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.manage_accounts_outlined,
+                          size: 16,
+                          color: supervisorColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            supervisorText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: supervisorColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  if (complaint.deadline != null) ...[
-                    const Icon(
-                      Icons.timer_outlined,
-                      size: 14,
-                      color: AppColors.warning,
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 14,
+                          color: AppColors.warning,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Due ${_formatDate(complaint.deadline!)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Due ${_formatDate(complaint.deadline!)}',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.warning,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                   ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.manage_accounts_outlined,
+                          size: 16,
+                          color: supervisorColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            supervisorText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: supervisorColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (complaint.deadline != null) ...[
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 14,
+                          color: AppColors.warning,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Due ${_formatDate(complaint.deadline!)}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(width: 8),
                   const Icon(
                     Icons.chevron_right_rounded,
                     size: 18,
                     color: AppColors.textSecondary,
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),

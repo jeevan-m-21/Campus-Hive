@@ -17,12 +17,18 @@ class ComplaintFeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final feedProvider = context.watch<HomeFeedProvider>();
-    final isSupporting = feedProvider.isSupportingComplaint(
-      complaint.complaintId,
-    );
-    final isSupported = feedProvider.isComplaintSupported(complaint);
-    final supportCount = feedProvider.getSupportCount(complaint);
+    HomeFeedProvider? feedProvider;
+    try {
+      feedProvider = context.watch<HomeFeedProvider>();
+    } catch (_) {}
+    final isSupporting = feedProvider?.isSupportingComplaint(
+          complaint.complaintId,
+        ) ??
+        false;
+    final isSupported =
+        feedProvider?.isComplaintSupported(complaint) ?? complaint.isSupported;
+    final supportCount =
+        feedProvider?.getSupportCount(complaint) ?? complaint.supportCount;
 
     return FeedCardShell(
       authorName: complaint.studentName?.isNotEmpty == true
@@ -87,10 +93,10 @@ class ComplaintFeedCard extends StatelessWidget {
             children: [
               InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: isSupporting
+                onTap: (isSupporting || feedProvider == null)
                     ? null
                     : () async {
-                        final error = await feedProvider.supportComplaint(
+                        final error = await feedProvider!.supportComplaint(
                           complaint.complaintId,
                         );
                         if (error != null && context.mounted) {
