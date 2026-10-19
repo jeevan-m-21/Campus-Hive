@@ -187,6 +187,15 @@ class AssignmentService:
         complaint.supervisor_id = None
         complaint.status = 'PENDING'
 
+        history = ComplaintStatusHistory(
+            complaint_id=complaint.complaint_id,
+            updated_by=complaint.student_id,
+            old_status=None,
+            new_status='PENDING',
+            remarks='Complaint submitted. Awaiting supervisor assignment.',
+        )
+        db.session.add(history)
+
         # Notify active organization administrators
         admins = User.query.filter_by(
             organization_id=complaint.organization_id,
@@ -299,19 +308,22 @@ class AssignmentService:
             return complaint  # No-op
 
         old_status = complaint.status
+        old_supervisor_id = complaint.supervisor_id
         complaint.supervisor_id = supervisor.user_id
 
         if complaint.status in ('PENDING', 'UNASSIGNED'):
             complaint.status = 'ASSIGNED'
 
-        history = ComplaintStatusHistory(
-            complaint_id=complaint.complaint_id,
-            updated_by=admin_user.user_id,
-            old_status=old_status,
-            new_status=complaint.status,
-            remarks=f'Manually assigned to {supervisor.full_name} by administrator.',
-        )
-        db.session.add(history)
+        # Only record status history if an actual status transition occurred
+        if old_status != complaint.status:
+            history = ComplaintStatusHistory(
+                complaint_id=complaint.complaint_id,
+                updated_by=admin_user.user_id,
+                old_status=old_status,
+                new_status=complaint.status,
+                remarks=f'Manually assigned to {supervisor.full_name} by administrator.',
+            )
+            db.session.add(history)
 
         NotificationService.create_notification(
             complaint.student_id,
@@ -328,6 +340,15 @@ class AssignmentService:
             'COMPLAINT',
             complaint.complaint_id,
         )
+
+        if old_supervisor_id and old_supervisor_id != supervisor.user_id:
+            NotificationService.create_notification(
+                old_supervisor_id,
+                'Complaint Reassigned',
+                f'Complaint "{complaint.title}" has been reassigned to another supervisor.',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
 
         return complaint
 
@@ -350,18 +371,52 @@ class AssignmentService:
             return complaint
 
         old_status = complaint.status
+        old_supervisor_id = complaint.supervisor_id
         complaint.supervisor_id = None
 
         if complaint.status == 'ASSIGNED':
             complaint.status = 'PENDING'
 
-        history = ComplaintStatusHistory(
-            complaint_id=complaint.complaint_id,
-            updated_by=admin_user.user_id,
-            old_status=old_status,
-            new_status=complaint.status,
-            remarks='Supervisor unassigned by administrator.',
+        # Only record status history if an actual status transition occurred
+        if old_status != complaint.status:
+            history = ComplaintStatusHistory(
+                complaint_id=complaint.complaint_id,
+                updated_by=admin_user.user_id,
+                old_status=old_status,
+                new_status=complaint.status,
+                remarks='Supervisor unassigned by administrator.',
+            )
+            db.session.add(history)
+
+        if old_supervisor_id:
+            NotificationService.create_notification(
+                old_supervisor_id,
+                'Supervisor Unassigned',
+                f'You have been unassigned from complaint "{complaint.title}".',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
+
+        NotificationService.create_notification(
+            complaint.student_id,
+            'Supervisor Unassigned',
+            f'The supervisor for your complaint "{complaint.title}" has been unassigned.',
+            'COMPLAINT',
+            complaint.complaint_id,
         )
-        db.session.add(history)
+
+        admins = User.query.filter_by(
+            organization_id=complaint.organization_id,
+            role='ORG_ADMIN',
+            is_active=True,
+        ).all()
+        for admin in admins:
+            NotificationService.create_notification(
+                admin.user_id,
+                'Unassigned Complaint',
+                f'Complaint #{complaint.complaint_id} "{complaint.title}" has been unassigned and returned to pending.',
+                'COMPLAINT',
+                complaint.complaint_id,
+            )
 
         return complaint

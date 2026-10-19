@@ -5,6 +5,7 @@ import '../core/network/api_endpoints.dart';
 import '../core/network/api_exception.dart';
 import '../models/complaint.dart';
 import '../models/complaint_comment.dart';
+import '../models/complaint_status_history.dart';
 import '../models/department.dart';
 import '../models/supervisor.dart';
 
@@ -141,6 +142,60 @@ class ComplaintService {
       );
     }
     return ComplaintComment.fromJson(data);
+  }
+
+  Future<List<ComplaintStatusHistory>> fetchStatusHistory(int complaintId) async {
+    final response = await _authenticatedGet(
+      ApiEndpoints.complaintHistory(complaintId),
+    );
+    final data = response['data'];
+    if (data is! List) {
+      throw const ComplaintException(
+        'The server returned invalid status history.',
+      );
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(ComplaintStatusHistory.fromJson)
+        .toList();
+  }
+
+  Future<Complaint> submitFeedback(
+    int complaintId,
+    String feedback, {
+    String? remarks,
+  }) async {
+    final response = await _authenticatedPost(
+      ApiEndpoints.studentFeedback(complaintId),
+      body: {
+        'feedback': feedback,
+        if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+      },
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid complaint data.',
+      );
+    }
+    return Complaint.fromJson(data);
+  }
+
+  Future<Complaint> reopenComplaint(
+    int complaintId, {
+    required String remarks,
+  }) async {
+    final response = await _authenticatedPost(
+      ApiEndpoints.reopenComplaint(complaintId),
+      body: {'remarks': remarks},
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid complaint data.',
+      );
+    }
+    return Complaint.fromJson(data);
   }
 
   Future<List<Department>> fetchDepartments() async {

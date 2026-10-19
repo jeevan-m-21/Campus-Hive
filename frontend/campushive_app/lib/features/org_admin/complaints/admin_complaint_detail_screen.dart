@@ -7,11 +7,14 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/status_history_timeline.dart';
 import '../../../models/complaint.dart';
 import '../../../models/complaint_comment.dart';
+import '../../../models/complaint_status_history.dart';
 import '../../../models/department.dart';
 import '../../../models/supervisor.dart';
 import '../../../providers/admin_complaint_provider.dart';
+import '../../../services/complaint_service.dart';
 import '../../student/home/widgets/feed_card_shell.dart';
 import '../widgets/admin_app_bar.dart';
 
@@ -28,8 +31,36 @@ class AdminComplaintDetailScreen extends StatefulWidget {
 class _AdminComplaintDetailScreenState
     extends State<AdminComplaintDetailScreen> {
   final _commentController = TextEditingController();
+  final _complaintService = ComplaintService();
   bool _isSendingComment = false;
   bool _isUpdating = false;
+
+  List<ComplaintStatusHistory> _history = [];
+  bool _isHistoryLoading = false;
+  String? _historyError;
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isHistoryLoading = true;
+      _historyError = null;
+    });
+    try {
+      final list = await _complaintService.fetchStatusHistory(widget.complaintId);
+      if (mounted) {
+        setState(() {
+          _history = list;
+          _isHistoryLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _historyError = 'Failed to load status history';
+          _isHistoryLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -40,6 +71,7 @@ class _AdminComplaintDetailScreenState
       provider.loadComments(widget.complaintId, refresh: true);
       provider.loadDepartments();
       provider.loadSupervisors();
+      _loadHistory();
     });
   }
 
@@ -99,6 +131,7 @@ class _AdminComplaintDetailScreenState
                     provider.loadComments(widget.complaintId, refresh: true),
                     provider.loadDepartments(),
                     provider.loadSupervisors(),
+                    _loadHistory(),
                   ]);
                 },
                 child: ListView(
@@ -130,6 +163,13 @@ class _AdminComplaintDetailScreenState
                       onUpdateDeadline: () => _pickDeadline(complaint),
                       onManageSupervisor: () =>
                           _showSupervisorDialog(complaint),
+                    ),
+                    const SizedBox(height: AppDimensions.spacingLarge),
+                    StatusHistoryTimeline(
+                      history: _history,
+                      isLoading: _isHistoryLoading,
+                      errorMessage: _historyError,
+                      onRetry: _loadHistory,
                     ),
                     const SizedBox(height: AppDimensions.spacingLarge),
                     _CommentsSection(
@@ -173,6 +213,7 @@ class _AdminComplaintDetailScreenState
     setState(() => _isUpdating = true);
     try {
       await provider.updateComplaint(complaint.complaintId, status: newStatus);
+      await _loadHistory();
       messenger.showSnackBar(
         SnackBar(content: Text('Status updated to $newStatus')),
       );
@@ -463,6 +504,7 @@ class _AdminComplaintDetailScreenState
                                   complaint.complaintId,
                                   supervisorId: selectedSupervisorId,
                                 );
+                                await _loadHistory();
                                 messenger.showSnackBar(
                                   const SnackBar(
                                     content: Text(
@@ -503,6 +545,7 @@ class _AdminComplaintDetailScreenState
                               complaint.departmentId,
                               selectedSupervisorId!,
                             );
+                            await _loadHistory();
                             final assignedCount =
                                 res['assigned_complaints_count'] ?? 0;
                             messenger.showSnackBar(
@@ -577,6 +620,7 @@ class _AdminComplaintDetailScreenState
         complaint.complaintId,
         clearSupervisor: true,
       );
+      await _loadHistory();
       messenger.showSnackBar(
         const SnackBar(content: Text('Supervisor unassigned successfully')),
       );
@@ -898,6 +942,7 @@ class _AdminComplaintDetailScreenState
                             status: selectedStatus,
                             remarks: remarksController.text.trim(),
                           );
+                          await _loadHistory();
                           messenger.showSnackBar(
                             SnackBar(
                               content: Text(

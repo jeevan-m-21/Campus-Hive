@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
@@ -8,35 +9,48 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/status_history_timeline.dart';
 import '../../../models/complaint.dart';
 import '../../../models/complaint_comment.dart';
+import '../../../models/complaint_status_history.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../services/complaint_service.dart';
 import '../widgets/student_app_bar.dart';
 
 class ComplaintDetailScreen extends StatefulWidget {
-  const ComplaintDetailScreen({required this.complaintId, super.key});
+  const ComplaintDetailScreen({
+    required this.complaintId,
+    this.service,
+    super.key,
+  });
 
   final int complaintId;
+  final ComplaintService? service;
 
   @override
   State<ComplaintDetailScreen> createState() => _ComplaintDetailScreenState();
 }
 
 class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
-  final _service = ComplaintService();
+  late final ComplaintService _service;
   final _commentController = TextEditingController();
   Complaint? _complaint;
   List<ComplaintComment> _comments = const [];
+  List<ComplaintStatusHistory> _history = const [];
   String? _errorMessage;
   String? _commentError;
+  String? _historyError;
   bool _isLoading = true;
   bool _isCommentsLoading = true;
+  bool _isHistoryLoading = true;
   bool _isSubmitting = false;
   bool _isSupporting = false;
+  bool _isSubmittingFeedback = false;
 
   @override
   void initState() {
     super.initState();
+    _service = widget.service ?? ComplaintService();
     _loadData();
   }
 
@@ -44,6 +58,23 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+
+  int? _getCurrentUserId() {
+    try {
+      final session = Provider.of<AuthProvider>(context, listen: false).session;
+      final id = session?.user['user_id'];
+      if (id is int) return id;
+      if (id is num) return id.toInt();
+      if (id is String) return int.tryParse(id);
+    } catch (_) {}
+    return null;
+  }
+
+  bool _isOwner(Complaint? complaint) {
+    if (complaint == null) return false;
+    final currentUserId = _getCurrentUserId();
+    return currentUserId != null && complaint.studentId == currentUserId;
   }
 
   Future<void> _loadData() async {
@@ -54,7 +85,11 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     try {
       final complaint = await _service.fetchComplaint(widget.complaintId);
       if (mounted) setState(() => _complaint = complaint);
-      await _loadComments();
+      final isOwner = _isOwner(complaint);
+      await Future.wait([
+        _loadComments(),
+        if (isOwner) _loadHistory(),
+      ]);
     } on ComplaintException catch (error) {
       if (mounted) setState(() => _errorMessage = error.message);
     } catch (_) {
@@ -63,6 +98,131 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isHistoryLoading = true;
+      _historyError = null;
+    });
+    try {
+      final history = await _service.fetchStatusHistory(widget.complaintId);
+      if (mounted) setState(() => _history = history);
+    } on ComplaintException catch (error) {
+      if (mounted) setState(() => _historyError = error.message);
+    } catch (_) {
+      if (mounted) setState(() => _historyError = 'Unable to load status history.');
+    } finally {
+      if (mounted) setState(() => _isHistoryLoading = false);
+    }
+  }
+
+  Future<void> _submitFeedback(String feedback, {String? remarks}) async {
+    if (_isSubmittingFeedback) return;
+    setState(() => _isSubmittingFeedback = true);
+    try {
+      final updated = await _service.submitFeedback(
+        widget.complaintId,
+        feedback,
+        remarks: remarks,
+      );
+      if (mounted) {
+        setState(() => _complaint = updated);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Feedback submitted successfully.')),
+        );
+      }
+      await _loadHistory();
+    } on ComplaintException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to submit feedback.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmittingFeedback = false);
+    }
+  }
+
+  Future<void> _showReopenDialog() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Reopen Complaint'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Please provide remarks explaining why the issue is not resolved:',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'e.g. The leak has returned in the same pipe...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                Navigator.of(dialogCtx).pop(text);
+              }
+            },
+            child: const Text('Reopen'),
+          ),
+        ],
+      ),
+    );
+
+    if (reason != null && reason.isNotEmpty) {
+      setState(() => _isSubmittingFeedback = true);
+      try {
+        final updated = await _service.reopenComplaint(
+          widget.complaintId,
+          remarks: reason,
+        );
+        if (mounted) {
+          setState(() => _complaint = updated);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Complaint reopened successfully.')),
+          );
+        }
+        await _loadHistory();
+      } on ComplaintException catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.message)),
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unable to reopen complaint.')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSubmittingFeedback = false);
+      }
     }
   }
 
@@ -153,6 +313,8 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isOwner = _isOwner(_complaint);
+
     return Scaffold(
       appBar: const StudentAppBar(showBack: true),
       body: RefreshIndicator(
@@ -199,6 +361,28 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                     isSupporting: _isSupporting,
                     onSupport: _supportComplaint,
                   ),
+                  if (isOwner &&
+                      (_complaint!.status == 'RESOLVED' ||
+                          _complaint!.status == 'CLOSED')) ...[
+                    const SizedBox(height: AppDimensions.spacingLarge),
+                    _ResolutionFeedbackCard(
+                      complaint: _complaint!,
+                      isSubmitting: _isSubmittingFeedback,
+                      onSatisfied: () => _submitFeedback('SATISFIED'),
+                      onReopen: _showReopenDialog,
+                    ),
+                  ],
+                  if (isOwner) ...[
+                    const SizedBox(height: AppDimensions.spacingLarge),
+                    const Divider(height: 1, color: AppColors.divider),
+                    const SizedBox(height: AppDimensions.spacingLarge),
+                    StatusHistoryTimeline(
+                      history: _history,
+                      isLoading: _isHistoryLoading,
+                      errorMessage: _historyError,
+                      onRetry: _loadHistory,
+                    ),
+                  ],
                   const SizedBox(height: AppDimensions.spacingLarge),
                   const Divider(height: 1, color: AppColors.divider),
                   const SizedBox(height: AppDimensions.spacingLarge),
@@ -675,3 +859,126 @@ String _formatDate(DateTime value) =>
 
 String _formatDateTime(DateTime value) =>
     '${_formatDate(value)} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+class _ResolutionFeedbackCard extends StatelessWidget {
+  const _ResolutionFeedbackCard({
+    required this.complaint,
+    required this.isSubmitting,
+    required this.onSatisfied,
+    required this.onReopen,
+  });
+
+  final Complaint complaint;
+  final bool isSubmitting;
+  final VoidCallback onSatisfied;
+  final VoidCallback onReopen;
+
+  @override
+  Widget build(BuildContext context) {
+    final authUser = context.watch<AuthProvider>().session?.user;
+    final currentUserId = authUser?['user_id'];
+    final isOwner =
+        currentUserId != null && complaint.studentId == currentUserId;
+
+    final feedback = complaint.studentFeedback;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                color: AppColors.success,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                complaint.status == 'CLOSED'
+                    ? 'Complaint Closed'
+                    : 'Complaint Resolved',
+                style: AppTextStyles.label.copyWith(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          if (complaint.resolvedAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Resolved on ${_formatDate(complaint.resolvedAt!)}',
+              style: AppTextStyles.caption,
+            ),
+          ],
+          const SizedBox(height: 12),
+          if (feedback != null) ...[
+            Row(
+              children: [
+                const Text(
+                  'Student Feedback: ',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                _Badge(
+                  label:
+                      feedback == 'SATISFIED' ? 'Satisfied' : 'Not Satisfied',
+                  color: feedback == 'SATISFIED'
+                      ? AppColors.success
+                      : AppColors.warning,
+                ),
+              ],
+            ),
+            if (isOwner &&
+                feedback == 'NOT_SATISFIED' &&
+                complaint.status == 'RESOLVED') ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.replay, size: 16),
+                label: const Text('Reopen Complaint'),
+                onPressed: isSubmitting ? null : onReopen,
+              ),
+            ],
+          ] else if (isOwner && complaint.status == 'RESOLVED') ...[
+            const Text(
+              'Are you satisfied with how this complaint was resolved?',
+              style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.thumb_up_outlined, size: 16),
+                    label: const Text('Satisfied'),
+                    onPressed: isSubmitting ? null : onSatisfied,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.replay, size: 16),
+                    label: const Text('Reopen'),
+                    onPressed: isSubmitting ? null : onReopen,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+

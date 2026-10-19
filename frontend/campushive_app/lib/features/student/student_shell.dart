@@ -9,6 +9,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_card.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/home_feed_provider.dart';
+import '../../providers/notification_provider.dart';
 import 'complaints/student_complaints_screen.dart';
 import 'home/student_dashboard_screen.dart';
 import 'lost_found/lost_found_screen.dart';
@@ -16,10 +17,24 @@ import 'announcements/announcements_screen.dart';
 import 'profile/student_profile_screen.dart';
 import 'widgets/student_app_bar.dart';
 
-class StudentShellScreen extends StatelessWidget {
+class StudentShellScreen extends StatefulWidget {
   const StudentShellScreen({required this.selectedIndex, super.key});
 
   final int selectedIndex;
+
+  @override
+  State<StudentShellScreen> createState() => _StudentShellScreenState();
+}
+
+class _StudentShellScreenState extends State<StudentShellScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<NotificationProvider>().loadUnreadCount();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +47,7 @@ class StudentShellScreen extends StatelessWidget {
       ],
       child: Scaffold(
         body: IndexedStack(
-          index: selectedIndex,
+          index: widget.selectedIndex,
           children: const [
             StudentDashboardScreen(),
             StudentComplaintsScreen(),
@@ -42,7 +57,7 @@ class StudentShellScreen extends StatelessWidget {
           ],
         ),
         bottomNavigationBar: _StudentBottomNavigationBar(
-          selectedIndex: selectedIndex,
+          selectedIndex: widget.selectedIndex,
         ),
       ),
     );
