@@ -7,6 +7,9 @@ abstract final class ApiEndpoints {
       '/organizations/$organizationId/academic-departments';
   static const complaints = '/complaints';
   static const complaintDepartments = '/complaints/departments';
+  static const complaintSupervisors = '$complaints/supervisors';
+  static String designateDepartmentSupervisor(int departmentId) =>
+      '$complaintDepartments/$departmentId/supervisor';
   static const uploadComplaintImage = '/complaints/upload-image';
   static const uploadAnnouncementAttachment =
       '/announcements/upload-attachment';

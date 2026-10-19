@@ -10,6 +10,7 @@ import '../../../core/widgets/app_loader.dart';
 import '../../../models/complaint.dart';
 import '../../../models/complaint_comment.dart';
 import '../../../models/department.dart';
+import '../../../models/supervisor.dart';
 import '../../../providers/admin_complaint_provider.dart';
 import '../../student/home/widgets/feed_card_shell.dart';
 import '../widgets/admin_app_bar.dart';
@@ -38,6 +39,7 @@ class _AdminComplaintDetailScreenState
       provider.getOrFetchComplaint(widget.complaintId);
       provider.loadComments(widget.complaintId, refresh: true);
       provider.loadDepartments();
+      provider.loadSupervisors();
     });
   }
 
@@ -81,6 +83,7 @@ class _AdminComplaintDetailScreenState
                           refresh: true,
                         );
                         provider.loadDepartments();
+                        provider.loadSupervisors();
                       },
                     ),
                   ],
@@ -95,6 +98,7 @@ class _AdminComplaintDetailScreenState
                     ),
                     provider.loadComments(widget.complaintId, refresh: true),
                     provider.loadDepartments(),
+                    provider.loadSupervisors(),
                   ]);
                 },
                 child: ListView(
@@ -109,8 +113,8 @@ class _AdminComplaintDetailScreenState
                       onUpdateDepartment: () =>
                           _showDepartmentDialog(complaint),
                       onUpdateDeadline: () => _pickDeadline(complaint),
-                      onUnassignSupervisor: () =>
-                          _confirmUnassignSupervisor(complaint),
+                      onManageSupervisor: () =>
+                          _showSupervisorDialog(complaint),
                     ),
                     const SizedBox(height: AppDimensions.spacingLarge),
                     _AdminActionsSection(
@@ -124,8 +128,8 @@ class _AdminComplaintDetailScreenState
                       onReassignDepartment: () =>
                           _showDepartmentDialog(complaint),
                       onUpdateDeadline: () => _pickDeadline(complaint),
-                      onUnassignSupervisor: () =>
-                          _confirmUnassignSupervisor(complaint),
+                      onManageSupervisor: () =>
+                          _showSupervisorDialog(complaint),
                     ),
                     const SizedBox(height: AppDimensions.spacingLarge),
                     _CommentsSection(
@@ -280,6 +284,261 @@ class _AdminComplaintDetailScreenState
         if (mounted) setState(() => _isUpdating = false);
       }
     }
+  }
+
+  Future<void> _showSupervisorDialog(Complaint complaint) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = context.read<AdminComplaintProvider>();
+
+    if (provider.supervisors.isEmpty) {
+      await provider.loadSupervisors();
+      if (!mounted) return;
+    }
+    final supervisors = provider.supervisors;
+
+    if (supervisors.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No active supervisors found for your organization.'),
+        ),
+      );
+      return;
+    }
+
+    int? selectedSupervisorId = complaint.supervisorId;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Supervisor Assignment',
+                          style: AppTextStyles.headingSmall,
+                        ),
+                        if (complaint.supervisorId != null)
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _confirmUnassignSupervisor(complaint);
+                            },
+                            child: const Text(
+                              'Unassign',
+                              style: TextStyle(color: AppColors.error),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      complaint.departmentName != null
+                          ? 'Operational Department: ${complaint.departmentName}'
+                          : 'Select an active supervisor to assign this complaint.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: 14),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(ctx).size.height * 0.45,
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: supervisors.length,
+                        itemBuilder: (ctx, idx) {
+                          final Supervisor supervisor = supervisors[idx];
+                          final isSelected =
+                              selectedSupervisorId == supervisor.userId;
+                          final isDeptMatch =
+                              supervisor.departmentId == complaint.departmentId;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                                width: isSelected ? 1.5 : 1.0,
+                              ),
+                              color: isSelected
+                                  ? AppColors.primary.withValues(alpha: 0.05)
+                                  : AppColors.background,
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isDeptMatch
+                                    ? AppColors.primary.withValues(alpha: 0.15)
+                                    : AppColors.divider,
+                                child: Icon(
+                                  Icons.person_outline,
+                                  color: isDeptMatch
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      supervisor.fullName,
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isDeptMatch)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.success.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Dept Match',
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: AppColors.success,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                '${supervisor.departmentName ?? "Unassigned Dept"} • ${supervisor.email}',
+                                style: AppTextStyles.caption,
+                              ),
+                              trailing: Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_off,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                              ),
+                              onTap: () => setModalState(
+                                () => selectedSupervisorId = supervisor.userId,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppButton(
+                      label: 'Assign to This Complaint',
+                      expand: true,
+                      onPressed: selectedSupervisorId == null
+                          ? null
+                          : () async {
+                              Navigator.pop(ctx);
+                              if (selectedSupervisorId ==
+                                  complaint.supervisorId) {
+                                return;
+                              }
+                              setState(() => _isUpdating = true);
+                              try {
+                                await provider.updateComplaint(
+                                  complaint.complaintId,
+                                  supervisorId: selectedSupervisorId,
+                                );
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Supervisor assigned successfully.',
+                                    ),
+                                  ),
+                                );
+                              } catch (e) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Failed to assign supervisor: $e',
+                                    ),
+                                  ),
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isUpdating = false);
+                                }
+                              }
+                            },
+                    ),
+                    if (selectedSupervisorId != null) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          setState(() => _isUpdating = true);
+                          try {
+                            final res = await provider
+                                .designateDepartmentSupervisor(
+                              complaint.departmentId,
+                              selectedSupervisorId!,
+                            );
+                            final assignedCount =
+                                res['assigned_complaints_count'] ?? 0;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Designated department supervisor. Assigned to $assignedCount pending complaints.',
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Failed to designate supervisor: $e',
+                                ),
+                              ),
+                            );
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isUpdating = false);
+                            }
+                          }
+                        },
+                        child: const Text(
+                          'Designate as Dept Supervisor & Assign Queue',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _confirmUnassignSupervisor(Complaint complaint) async {
@@ -675,7 +934,7 @@ class _ComplaintHeaderCard extends StatelessWidget {
     required this.onUpdatePriority,
     required this.onUpdateDepartment,
     required this.onUpdateDeadline,
-    required this.onUnassignSupervisor,
+    required this.onManageSupervisor,
   });
 
   final Complaint complaint;
@@ -683,7 +942,7 @@ class _ComplaintHeaderCard extends StatelessWidget {
   final VoidCallback onUpdatePriority;
   final VoidCallback onUpdateDepartment;
   final VoidCallback onUpdateDeadline;
-  final VoidCallback onUnassignSupervisor;
+  final VoidCallback onManageSupervisor;
 
   @override
   Widget build(BuildContext context) {
@@ -894,7 +1153,7 @@ class _ComplaintHeaderCard extends StatelessWidget {
               // Supervisor Assignment Chip
               if (complaint.supervisorId != null)
                 InkWell(
-                  onTap: onUnassignSupervisor,
+                  onTap: onManageSupervisor,
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -916,7 +1175,9 @@ class _ComplaintHeaderCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Supervisor #${complaint.supervisorId}',
+                          complaint.supervisorName != null
+                              ? 'Supervisor: ${complaint.supervisorName}'
+                              : 'Supervisor #${complaint.supervisorId}',
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
@@ -924,7 +1185,7 @@ class _ComplaintHeaderCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         const Icon(
-                          Icons.close,
+                          Icons.edit_outlined,
                           size: 12,
                           color: AppColors.primary,
                         ),
@@ -933,7 +1194,39 @@ class _ComplaintHeaderCard extends StatelessWidget {
                   ),
                 )
               else
-                FeedBadge(label: 'Unassigned', color: AppColors.warning),
+                InkWell(
+                  onTap: onManageSupervisor,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.warning),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.person_add_alt_1_outlined,
+                          size: 14,
+                          color: AppColors.warning,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Unassigned (Tap to assign)',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ],
@@ -980,7 +1273,7 @@ class _AdminActionsSection extends StatelessWidget {
     required this.onUpdatePriority,
     required this.onReassignDepartment,
     required this.onUpdateDeadline,
-    required this.onUnassignSupervisor,
+    required this.onManageSupervisor,
   });
 
   final Complaint complaint;
@@ -990,7 +1283,7 @@ class _AdminActionsSection extends StatelessWidget {
   final VoidCallback onUpdatePriority;
   final VoidCallback onReassignDepartment;
   final VoidCallback onUpdateDeadline;
-  final VoidCallback onUnassignSupervisor;
+  final VoidCallback onManageSupervisor;
 
   @override
   Widget build(BuildContext context) {
@@ -1062,7 +1355,7 @@ class _AdminActionsSection extends StatelessWidget {
 
         const SizedBox(height: AppDimensions.spacingSmall),
 
-        // Secondary controls row: Department Reassignment & Priority
+        // Secondary controls row 1: Department & Supervisor
         Row(
           children: [
             Expanded(
@@ -1079,6 +1372,30 @@ class _AdminActionsSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppDimensions.spacingSmall),
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.manage_accounts_outlined, size: 16),
+                label: Text(
+                  complaint.supervisorId != null
+                      ? 'Supervisor'
+                      : 'Assign Superv.',
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: onManageSupervisor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.spacingSmall),
+
+        // Secondary controls row 2: Priority & Deadline
+        Row(
+          children: [
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.flag_outlined, size: 16),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/complaint.dart';
 import '../models/complaint_comment.dart';
 import '../models/department.dart';
+import '../models/supervisor.dart';
 import '../services/complaint_service.dart';
 
 class AdminComplaintProvider extends ChangeNotifier {
@@ -13,9 +14,12 @@ class AdminComplaintProvider extends ChangeNotifier {
 
   List<Complaint> _complaints = [];
   List<Department> _departments = [];
+  List<Supervisor> _supervisors = [];
   bool _isLoading = false;
   bool _isLoadingDepartments = false;
+  bool _isLoadingSupervisors = false;
   String? _errorMessage;
+  String? _supervisorsErrorMessage;
 
   // Pagination
   int _page = 1;
@@ -43,9 +47,12 @@ class AdminComplaintProvider extends ChangeNotifier {
 
   List<Complaint> get complaints => _complaints;
   List<Department> get departments => _departments;
+  List<Supervisor> get supervisors => _supervisors;
   bool get isLoading => _isLoading;
   bool get isLoadingDepartments => _isLoadingDepartments;
+  bool get isLoadingSupervisors => _isLoadingSupervisors;
   String? get errorMessage => _errorMessage;
+  String? get supervisorsErrorMessage => _supervisorsErrorMessage;
 
   AdminDashboardStats? get dashboardStats => _dashboardStats;
   bool get isLoadingDashboard => _isLoadingDashboard;
@@ -99,6 +106,49 @@ class AdminComplaintProvider extends ChangeNotifier {
       _isLoadingDepartments = false;
       notifyListeners();
     }
+  }
+
+  Future<List<Supervisor>> loadSupervisors({
+    bool force = false,
+    int? departmentId,
+  }) async {
+    if (!force && _supervisors.isNotEmpty && departmentId == null) {
+      return _supervisors;
+    }
+    _isLoadingSupervisors = true;
+    _supervisorsErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final list = await _complaintService.fetchSupervisors(
+        departmentId: departmentId,
+      );
+      if (departmentId == null) {
+        _supervisors = list;
+      }
+      return list;
+    } on ComplaintException catch (e) {
+      _supervisorsErrorMessage = e.message;
+      return [];
+    } catch (_) {
+      _supervisorsErrorMessage = 'Failed to load supervisors.';
+      return [];
+    } finally {
+      _isLoadingSupervisors = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> designateDepartmentSupervisor(
+    int departmentId,
+    int supervisorId,
+  ) async {
+    final result = await _complaintService.designateDepartmentSupervisor(
+      departmentId,
+      supervisorId,
+    );
+    await loadComplaints(refresh: true);
+    return result;
   }
 
   Future<void> loadComplaints({bool refresh = false, int? targetPage}) async {

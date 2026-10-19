@@ -19,6 +19,8 @@ class Complaint {
     required this.updatedAt,
     required this.studentName,
     required this.departmentName,
+    this.supervisorName,
+    this.category,
     this.imageUrl,
     this.isSupported = false,
   });
@@ -44,6 +46,8 @@ class Complaint {
   final DateTime? updatedAt;
   final String? studentName;
   final String? departmentName;
+  final String? supervisorName;
+  final String? category;
 
   factory Complaint.fromJson(Map<String, dynamic> json) {
     return Complaint(
@@ -68,6 +72,8 @@ class Complaint {
       updatedAt: _date(json['updated_at']),
       studentName: _nullableString(json['student_name']),
       departmentName: _nullableString(json['department_name']),
+      supervisorName: _nullableString(json['supervisor_name']),
+      category: _nullableString(json['category']),
     );
   }
 

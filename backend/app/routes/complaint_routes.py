@@ -7,6 +7,7 @@ from flask import Blueprint, current_app, g, request
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintImage, ComplaintStatusHistory, Department, User
+from app.services.assignment_service import AssignmentService
 from app.services.notification_service import NotificationService, NotificationServiceError
 from app.services.priority_service import PriorityService
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
@@ -20,6 +21,7 @@ _PRIORITY_VALUES = {'LOW', 'MEDIUM', 'HIGH'}
 _FEEDBACK_VALUES = {'SATISFIED', 'NOT_SATISFIED'}
 _ALLOWED_CREATE_ROLES = {'STUDENT'}
 _ALLOWED_UPDATE_ROLES = {'SUPER_ADMIN', 'ORG_ADMIN', 'SUPERVISOR'}
+_ALLOWED_ASSIGNMENT_ROLES = {'SUPER_ADMIN', 'ORG_ADMIN'}
 
 
 def _normalize_value(value):
@@ -84,6 +86,108 @@ def get_complaint_departments():
     )
 
 
+@complaint_bp.route('/supervisors', methods=['GET'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPER_ADMIN')
+def list_supervisors():
+    """List active supervisors for the current user's organization."""
+    query = User.query.filter_by(
+        organization_id=g.current_user.organization_id,
+        role='SUPERVISOR',
+        is_active=True,
+    )
+    department_id = request.args.get('department_id')
+    if department_id:
+        try:
+            query = query.filter_by(department_id=int(department_id))
+        except (TypeError, ValueError):
+            return error_response('validation_error', 'department_id must be an integer', 400)
+
+    supervisors = query.order_by(User.full_name.asc()).all()
+    data = [
+        {
+            'user_id': s.user_id,
+            'full_name': s.full_name,
+            'email': s.email,
+            'department_id': s.department_id,
+            'department_name': s.department.department_name if s.department else None,
+            'phone': s.phone,
+            'is_active': bool(s.is_active),
+        }
+        for s in supervisors
+    ]
+    return success_response(data, 'Supervisors retrieved successfully', 200)
+
+
+@complaint_bp.route('/departments/<int:department_id>/supervisor', methods=['POST'])
+@complaint_bp.route('/departments/designate-supervisor', methods=['POST'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPER_ADMIN')
+def designate_department_supervisor(department_id=None):
+    """Designate a supervisor for a department and auto-assign pending complaints."""
+    payload = _get_request_data()
+    if department_id is None:
+        department_id = payload.get('department_id')
+
+    if department_id in (None, ''):
+        return error_response('validation_error', 'department_id is required', 400)
+    try:
+        department_id = int(department_id)
+    except (TypeError, ValueError):
+        return error_response('validation_error', 'department_id must be an integer', 400)
+
+    supervisor_id = payload.get('supervisor_id')
+    if supervisor_id in (None, ''):
+        return error_response('validation_error', 'supervisor_id is required', 400)
+    try:
+        supervisor_id = int(supervisor_id)
+    except (TypeError, ValueError):
+        return error_response('validation_error', 'supervisor_id must be an integer', 400)
+
+    department = Department.query.filter_by(
+        department_id=department_id,
+        organization_id=g.current_user.organization_id,
+    ).first()
+    if department is None:
+        return error_response('not_found', 'Department not found for this organization', 404)
+
+    supervisor = User.query.filter_by(
+        user_id=supervisor_id,
+        organization_id=g.current_user.organization_id,
+        role='SUPERVISOR',
+        is_active=True,
+    ).first()
+    if supervisor is None:
+        return error_response('not_found', 'Supervisor not found for this organization', 404)
+
+    try:
+        assigned_complaints = AssignmentService.designate_department_supervisor(
+            department=department,
+            supervisor=supervisor,
+            admin_user=g.current_user,
+        )
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return error_response('validation_error', str(exc), 400)
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return success_response(
+        {
+            'department_id': department.department_id,
+            'department_name': department.department_name,
+            'supervisor_id': supervisor.user_id,
+            'supervisor_name': supervisor.full_name,
+            'assigned_complaints_count': len(assigned_complaints),
+            'assigned_complaint_ids': [c.complaint_id for c in assigned_complaints],
+        },
+        'Supervisor designated for department successfully',
+        200,
+    )
+
+
 @complaint_bp.route('/upload-image', methods=['POST'])
 @firebase_login_required
 @role_required()
@@ -116,7 +220,7 @@ def upload_complaint_image():
 @firebase_login_required
 @role_required()
 def create_complaint():
-    """Create a new complaint."""
+    """Create a new complaint with automatic category-based supervisor assignment."""
 
     if g.current_user.role.upper() not in _ALLOWED_CREATE_ROLES:
         return error_response('forbidden', 'Only students can create complaints', 403)
@@ -124,43 +228,32 @@ def create_complaint():
     payload = _get_request_data()
 
     department_id = payload.get('department_id')
+    category = payload.get('category')
     title = (payload.get('title') or '').strip()
     description = (payload.get('description') or '').strip()
     location = payload.get('location')
     image_url = (payload.get('image_url') or '').strip() or None
-
-    if department_id in (None, ''):
-        return error_response('validation_error', 'department_id is required', 400)
-    try:
-        department_id = int(department_id)
-    except (TypeError, ValueError):
-        return error_response('validation_error', 'department_id must be an integer', 400)
 
     if not title:
         return error_response('validation_error', 'title is required', 400)
     if not description:
         return error_response('validation_error', 'description is required', 400)
 
-    department = Department.query.filter_by(
+    department = AssignmentService.resolve_department(
+        g.current_user.organization_id,
         department_id=department_id,
-        organization_id=g.current_user.organization_id,
-    ).first()
+        category=category,
+    )
     if department is None:
-        return error_response('not_found', 'Department not found for this organization', 404)
-    
-    # Find the active supervisor for this department
-    supervisor = User.query.filter_by(
-        organization_id=g.current_user.organization_id,
-        department_id=department.department_id,
-        role='SUPERVISOR',
-        is_active=True,
-    ).first()
+        if department_id in (None, '') and not category:
+            return error_response('validation_error', 'department_id or category is required', 400)
+        return error_response('not_found', 'Department or category not found for this organization', 404)
 
     complaint = Complaint(
         organization_id=g.current_user.organization_id,
         student_id=g.current_user.user_id,
-        department_id=department_id,
-        supervisor_id=supervisor.user_id if supervisor else None,
+        department_id=department.department_id,
+        supervisor_id=None,
         title=title,
         description=description,
         location=location,
@@ -168,11 +261,6 @@ def create_complaint():
         final_priority=None,
         status='PENDING',
     )
-
-    if complaint.ml_priority is not None and complaint.ml_priority not in _PRIORITY_VALUES:
-        return error_response('validation_error', 'Invalid ml_priority value', 400)
-    if complaint.final_priority is not None and complaint.final_priority not in _PRIORITY_VALUES:
-        return error_response('validation_error', 'Invalid final_priority value', 400)
 
     db.session.add(complaint)
 
@@ -187,22 +275,18 @@ def create_complaint():
         complaint.support_count = 0
         PriorityService.update_complaint_priority(complaint, recalculate_ml=True)
 
+        # Automatic category-based supervisor assignment
+        supervisor = AssignmentService.auto_assign_complaint(complaint, department)
+
         NotificationService.create_notification(
             complaint.student_id,
             'Complaint Submitted',
-            'Your complaint has been submitted successfully.',
+            'Your complaint has been submitted and assigned to a supervisor.'
+            if supervisor is not None
+            else 'Your complaint has been submitted successfully.',
             'COMPLAINT',
             complaint.complaint_id,
         )
-
-        if supervisor is not None:
-            NotificationService.create_notification(
-                supervisor.user_id,
-                'New Complaint Assigned',
-                f'A new complaint "{complaint.title}" has been assigned to you.',
-                'COMPLAINT',
-                complaint.complaint_id,
-            )
 
         db.session.commit()
     except NotificationServiceError as exc:
@@ -377,10 +461,15 @@ def update_complaint(complaint_id):
             return error_response('validation_error', 'description cannot be empty', 400)
         complaint.description = description
 
+    supervisor_assigned = False
     if 'supervisor_id' in payload:
+        if g.current_user.role.upper() not in _ALLOWED_ASSIGNMENT_ROLES:
+            return error_response('forbidden', 'Only organization administrators can assign or unassign supervisors', 403)
+
         supervisor_id = payload.get('supervisor_id')
         if supervisor_id in (None, ''):
-            complaint.supervisor_id = None
+            AssignmentService.unassign_supervisor(complaint, g.current_user)
+            supervisor_assigned = True
         else:
             try:
                 supervisor_id = int(supervisor_id)
@@ -396,7 +485,13 @@ def update_complaint(complaint_id):
             if supervisor is None:
                 return error_response('not_found', 'Supervisor not found for this organization', 404)
 
-            complaint.supervisor_id = supervisor_id
+            try:
+                AssignmentService.manual_assign_supervisor(complaint, supervisor, g.current_user)
+                supervisor_assigned = True
+            except ValueError as exc:
+                return error_response('validation_error', str(exc), 400)
+            except PermissionError as exc:
+                return error_response('forbidden', str(exc), 403)
 
     if 'location' in payload:
         complaint.location = payload.get('location')
@@ -415,8 +510,8 @@ def update_complaint(complaint_id):
             return error_response('not_found', 'Department not found for this organization', 404)
         complaint.department_id = department_id
 
-    should_notify_assigned = complaint.supervisor_id != old_supervisor_id and complaint.supervisor_id is not None
-    status_changed = complaint.status != old_status
+    should_notify_assigned = False
+    status_changed = complaint.status != old_status and not supervisor_assigned
     description_changed = complaint.description != old_description
     department_changed = complaint.department_id != old_department_id
 
@@ -435,15 +530,6 @@ def update_complaint(complaint_id):
             PriorityService.update_complaint_priority(
                 complaint,
                 recalculate_ml=description_changed,
-            )
-
-        if should_notify_assigned:
-            NotificationService.create_notification(
-                complaint.student_id,
-                'Complaint Assigned',
-                'Your complaint has been assigned to a supervisor.',
-                'COMPLAINT',
-                complaint.complaint_id,
             )
 
         if status_changed:

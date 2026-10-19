@@ -6,6 +6,7 @@ import '../core/network/api_exception.dart';
 import '../models/complaint.dart';
 import '../models/complaint_comment.dart';
 import '../models/department.dart';
+import '../models/supervisor.dart';
 
 class ComplaintService {
   ComplaintService({ApiClient? apiClient, FirebaseAuth? firebaseAuth})
@@ -154,6 +155,54 @@ class ComplaintService {
         .whereType<Map<String, dynamic>>()
         .map(Department.fromJson)
         .toList();
+  }
+
+  Future<List<Supervisor>> fetchSupervisors({int? departmentId}) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw const ComplaintException('Please sign in again.');
+
+    final idToken = await user.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw const ComplaintException('Please sign in again.');
+    }
+
+    late final Map<String, dynamic> response;
+    try {
+      response = await _apiClient.get(
+        ApiEndpoints.complaintSupervisors,
+        idToken: idToken,
+        queryParameters: {
+          if (departmentId != null) 'department_id': '$departmentId',
+        },
+      );
+    } on ApiException catch (error) {
+      throw ComplaintException(error.message);
+    }
+    final data = response['data'];
+    if (data is! List) {
+      throw const ComplaintException('The server returned invalid supervisors.');
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(Supervisor.fromJson)
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> designateDepartmentSupervisor(
+    int departmentId,
+    int supervisorId,
+  ) async {
+    final response = await _authenticatedPost(
+      ApiEndpoints.designateDepartmentSupervisor(departmentId),
+      body: {'supervisor_id': supervisorId},
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid designation data.',
+      );
+    }
+    return data;
   }
 
   Future<String> uploadImage(String filePath) async {
