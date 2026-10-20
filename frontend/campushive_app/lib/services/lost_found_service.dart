@@ -76,7 +76,7 @@ class LostFoundService {
     }
     try {
       final response = await _apiClient.postMultipart(
-        ApiEndpoints.uploadComplaintImage,
+        ApiEndpoints.uploadLostFoundImage,
         idToken: idToken,
         filePath: filePath,
       );

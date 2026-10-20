@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/org_admin/admin_shell.dart';
 import '../features/org_admin/complaints/admin_complaint_detail_screen.dart';
 import '../features/org_admin/notifications/admin_notifications_screen.dart';
+import '../features/org_admin/users/admin_supervisors_screen.dart';
 import '../features/auth/landing_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -49,6 +51,7 @@ abstract final class AppRoutes {
   static const adminAnnouncements = '/admin/announcements';
   static const adminProfile = '/admin/profile';
   static const adminNotifications = '/admin/notifications';
+  static const adminSupervisors = '/admin/supervisors';
 
   static String studentComplaintDetail(int complaintId) =>
       '/student/complaints/$complaintId';
@@ -68,8 +71,15 @@ abstract final class AppRoutes {
   static String adminAnnouncementDetail(int announcementId) =>
       '/admin/announcements/$announcementId';
 
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
+  static GoRouter? _activeRouter;
+
+  static GoRouter get routerInstance => _activeRouter ?? router();
+
   static GoRouter router() {
-    return GoRouter(
+    _activeRouter = GoRouter(
+      navigatorKey: rootNavigatorKey,
       initialLocation: splash,
       routes: [
         GoRoute(
@@ -215,7 +225,12 @@ abstract final class AppRoutes {
                 int.tryParse(state.pathParameters['announcementId'] ?? '') ?? 0,
           ),
         ),
+        GoRoute(
+          path: adminSupervisors,
+          builder: (context, state) => const AdminSupervisorsScreen(),
+        ),
       ],
     );
+    return _activeRouter!;
   }
 }

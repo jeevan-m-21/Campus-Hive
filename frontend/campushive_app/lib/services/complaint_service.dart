@@ -260,6 +260,41 @@ class ComplaintService {
     return data;
   }
 
+  Future<Supervisor> createSupervisor({
+    required String fullName,
+    required String email,
+    required String password,
+    required String employeeId,
+    required int departmentId,
+    String? phone,
+  }) async {
+    final body = {
+      'full_name': fullName.trim(),
+      'email': email.trim().toLowerCase(),
+      'password': password,
+      'usn_or_employee_id': employeeId.trim(),
+      'department_id': departmentId,
+      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+    };
+
+    final response = await _authenticatedPost(
+      ApiEndpoints.complaintSupervisors,
+      body: body,
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const ComplaintException(
+        'The server returned invalid supervisor data.',
+      );
+    }
+    final supervisorJson = data['supervisor'] is Map<String, dynamic>
+        ? data['supervisor'] as Map<String, dynamic>
+        : data['user'] is Map<String, dynamic>
+            ? data['user'] as Map<String, dynamic>
+            : data;
+    return Supervisor.fromJson(supervisorJson);
+  }
+
   Future<String> uploadImage(String filePath) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) throw const ComplaintException('Please sign in again.');
@@ -431,4 +466,7 @@ class ComplaintException implements Exception {
   const ComplaintException(this.message);
 
   final String message;
+
+  @override
+  String toString() => message;
 }

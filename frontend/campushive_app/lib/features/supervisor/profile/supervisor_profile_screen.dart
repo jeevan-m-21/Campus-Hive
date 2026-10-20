@@ -10,11 +10,12 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/editable_profile_avatar.dart';
 import '../../../models/department.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/supervisor_complaint_provider.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/complaint_service.dart';
-import '../../student/home/widgets/feed_card_shell.dart';
 import '../widgets/supervisor_app_bar.dart';
 
 class SupervisorProfileScreen extends StatefulWidget {
@@ -83,21 +84,12 @@ class _ProfileHeader extends StatelessWidget {
     return AppCard(
       child: Row(
         children: [
-          imageUrl.isEmpty
-              ? const CircleAvatar(
-                  radius: 38,
-                  backgroundColor: AppColors.divider,
-                  child: Icon(
-                    Icons.badge_outlined,
-                    size: 34,
-                    color: AppColors.primary,
-                  ),
-                )
-              : CircleAvatar(
-                  radius: 38,
-                  backgroundColor: AppColors.divider,
-                  backgroundImage: NetworkImage(resolveImageUrl(imageUrl)),
-                ),
+          EditableProfileAvatar(
+            imageUrl: imageUrl,
+            radius: 38,
+            fallbackIcon: Icons.badge_outlined,
+            fallbackIconColor: AppColors.primary,
+          ),
           const SizedBox(width: AppDimensions.spacingMedium),
           Expanded(
             child: Column(
@@ -408,52 +400,21 @@ class _ProfileActions extends StatelessWidget {
   }
 
   Future<void> _showEditProfile(BuildContext context) async {
-    final nameController = TextEditingController(
-      text: _value(user['full_name']),
-    );
-    final phoneController = TextEditingController(text: _value(user['phone']));
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppTextField(
-              controller: nameController,
-              label: 'Full name',
-              prefixIcon: Icons.person_outline,
+      barrierDismissible: false,
+      builder: (dialogContext) => _EditProfileDialog(
+        user: user,
+        onSuccess: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile updated successfully.'),
+              backgroundColor: AppColors.success,
             ),
-            const SizedBox(height: AppDimensions.spacingMedium),
-            AppTextField(
-              controller: phoneController,
-              label: 'Phone',
-              prefixIcon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Profile editing is not available yet.'),
-                ),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
+          );
+        },
       ),
     );
-    nameController.dispose();
-    phoneController.dispose();
   }
 
   Future<void> _showChangePassword(BuildContext context) async {
@@ -575,4 +536,170 @@ class _ProfileActions extends StatelessWidget {
 String _value(Object? value) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? '' : text;
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog({
+    required this.user,
+    required this.onSuccess,
+  });
+
+  final Map<String, dynamic> user;
+  final VoidCallback onSuccess;
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: _value(widget.user['full_name']),
+    );
+    _phoneController = TextEditingController(
+      text: _value(widget.user['phone']),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await context.read<AuthProvider>().updateProfile(
+        fullName: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onSuccess();
+      }
+    } on AuthException catch (error) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = error.message;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = 'Unable to update profile. Please try again.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Profile'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(AppDimensions.spacingSmall),
+                margin: const EdgeInsets.only(
+                  bottom: AppDimensions.spacingMedium,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(
+                    AppDimensions.spacingSmall,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 18,
+                      color: AppColors.error,
+                    ),
+                    const SizedBox(width: AppDimensions.spacingSmall),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            AppTextField(
+              controller: _nameController,
+              label: 'Full name',
+              prefixIcon: Icons.person_outline,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Full name is required';
+                }
+                if (value.trim().length > 100) {
+                  return 'Full name must be 100 characters or fewer';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppDimensions.spacingMedium),
+            AppTextField(
+              controller: _phoneController,
+              label: 'Phone',
+              prefixIcon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+              validator: (value) {
+                if (value != null && value.trim().length > 15) {
+                  return 'Phone must be 15 characters or fewer';
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isSubmitting ? null : _submit,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
 }

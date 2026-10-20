@@ -6,6 +6,7 @@ class Supervisor {
     this.departmentId,
     this.departmentName,
     this.phone,
+    this.employeeId,
     this.isActive = true,
   });
 
@@ -15,6 +16,7 @@ class Supervisor {
   final int? departmentId;
   final String? departmentName;
   final String? phone;
+  final String? employeeId;
   final bool isActive;
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
@@ -25,6 +27,9 @@ class Supervisor {
       departmentId: _nullableInt(json['department_id']),
       departmentName: _nullableString(json['department_name']),
       phone: _nullableString(json['phone']),
+      employeeId: _nullableString(
+        json['usn_or_employee_id'] ?? json['employee_id'],
+      ),
       isActive: json['is_active'] != false,
     );
   }

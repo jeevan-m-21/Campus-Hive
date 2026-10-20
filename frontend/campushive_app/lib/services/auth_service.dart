@@ -227,6 +227,128 @@ class AuthService {
     return AuthSession(user: user, role: role);
   }
 
+  Future<AuthSession> updateProfile({
+    String? fullName,
+    String? phone,
+    String? profileImage,
+  }) async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) {
+      throw const AuthException('You must be logged in to update your profile.');
+    }
+    final idToken = await firebaseUser.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw const AuthException('Unable to obtain authentication token.');
+    }
+
+    final body = <String, dynamic>{};
+    if (fullName != null) {
+      body['full_name'] = fullName;
+    }
+    if (phone != null) {
+      body['phone'] = phone;
+    }
+    if (profileImage != null) {
+      body['profile_image'] = profileImage;
+    }
+
+    try {
+      final response = await _apiClient.patch(
+        ApiEndpoints.updateProfile,
+        idToken: idToken,
+        body: body,
+      );
+      final data = response['data'];
+      final user = data is Map<String, dynamic> ? data['user'] : null;
+      if (user is! Map<String, dynamic>) {
+        throw const AuthException(
+          'The server returned an invalid user response.',
+        );
+      }
+
+      final role = user['role'];
+      if (role is! String || role.isEmpty) {
+        throw const AuthException('The server returned an invalid user role.');
+      }
+
+      final stored = await _secureStorage.readSession();
+      final nowUtc = DateTime.now().toUtc();
+      await _secureStorage.writeSession(
+        idToken: idToken,
+        user: user,
+        sessionCreatedAt: stored?.sessionCreatedAt ?? nowUtc,
+        lastActiveAt: nowUtc,
+      );
+
+      return AuthSession(user: user, role: role);
+    } on ApiException catch (error) {
+      final msg = error.message.isNotEmpty && error.message != 'Request failed.'
+          ? error.message
+          : 'Unable to update profile. Please try again.';
+      throw AuthException(msg);
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw const AuthNetworkException(
+        'Unable to update profile. Please check your connection.',
+      );
+    }
+  }
+
+  Future<AuthSession> uploadProfileImage(String filePath) async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) {
+      throw const AuthException(
+        'You must be logged in to update your profile picture.',
+      );
+    }
+    final idToken = await firebaseUser.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw const AuthException('Unable to obtain authentication token.');
+    }
+
+    try {
+      final response = await _apiClient.postMultipart(
+        ApiEndpoints.uploadProfileImage,
+        idToken: idToken,
+        filePath: filePath,
+        fileField: 'image',
+      );
+      final data = response['data'];
+      final user = data is Map<String, dynamic> ? data['user'] : null;
+      if (user is! Map<String, dynamic>) {
+        throw const AuthException(
+          'The server returned an invalid user response.',
+        );
+      }
+
+      final role = user['role'];
+      if (role is! String || role.isEmpty) {
+        throw const AuthException('The server returned an invalid user role.');
+      }
+
+      final stored = await _secureStorage.readSession();
+      final nowUtc = DateTime.now().toUtc();
+      await _secureStorage.writeSession(
+        idToken: idToken,
+        user: user,
+        sessionCreatedAt: stored?.sessionCreatedAt ?? nowUtc,
+        lastActiveAt: nowUtc,
+      );
+
+      return AuthSession(user: user, role: role);
+    } on ApiException catch (error) {
+      final msg = error.message.isNotEmpty && error.message != 'Request failed.'
+          ? error.message
+          : 'Unable to upload profile picture. Please try again.';
+      throw AuthException(msg);
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw const AuthNetworkException(
+        'Unable to upload profile picture. Please check your connection.',
+      );
+    }
+  }
+
   Future<AuthSession?> restoreSession() async {
     // 1. Read stored session metadata
     final stored = await _secureStorage.readSession();
@@ -308,6 +430,24 @@ class AuthService {
       throw const AuthNetworkException(
         'Unable to connect to server. Please check your network.',
       );
+    }
+  }
+
+  Future<bool> updateFcmToken(String fcmToken) async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) return false;
+    final idToken = await firebaseUser.getIdToken();
+    if (idToken == null || idToken.isEmpty) return false;
+
+    try {
+      await _apiClient.post(
+        ApiEndpoints.updateFcmToken,
+        idToken: idToken,
+        body: {'fcm_token': fcmToken},
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

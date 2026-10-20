@@ -2,7 +2,7 @@
 
 from flask import Blueprint, g, request
 
-from app.middleware.firebase_auth import firebase_login_required
+from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.services.auth_service import (
     AuthService,
     AuthServiceError,
@@ -118,3 +118,54 @@ def update_fcm_token():
         return _handle_auth_error(error)
 
     return success_response(result, 'FCM token updated successfully.', 200)
+
+
+@auth_bp.route('/profile', methods=['PATCH', 'PUT'])
+@auth_bp.route('/me', methods=['PATCH'])
+@firebase_login_required
+def update_profile():
+    """Update the current user's profile."""
+
+    payload = request.get_json(silent=True)
+    if payload is None or not isinstance(payload, dict):
+        return error_response('invalid_payload', 'Request body must be a valid JSON object.', 400)
+
+    try:
+        result = AuthService.update_profile(g.current_user, payload)
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Profile updated successfully.', 200)
+
+
+@auth_bp.route('/profile-image', methods=['POST'])
+@firebase_login_required
+def upload_profile_image():
+    """Upload and set profile picture for the authenticated user."""
+    if 'image' not in request.files and 'file' not in request.files:
+        return error_response('validation_error', 'No image file provided.', 400)
+
+    file = request.files.get('image') or request.files.get('file')
+    if not file or not file.filename:
+        return error_response('validation_error', 'No image selected.', 400)
+
+    try:
+        result = AuthService.upload_profile_image(g.current_user, file)
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Profile picture updated successfully.', 200)
+
+
+@auth_bp.route('/supervisors', methods=['POST'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPER_ADMIN')
+def create_supervisor():
+    """Create a new Supervisor user account."""
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = AuthService.create_supervisor(g.current_user, payload)
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Supervisor created successfully.', 201)

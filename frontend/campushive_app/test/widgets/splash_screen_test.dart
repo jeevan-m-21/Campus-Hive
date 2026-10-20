@@ -7,6 +7,7 @@ import 'package:campushive_app/app/routes.dart';
 import 'package:campushive_app/features/auth/splash_screen.dart';
 import 'package:campushive_app/providers/auth_provider.dart';
 import 'package:campushive_app/services/auth_service.dart';
+import 'package:campushive_app/services/fcm_service.dart';
 
 class MockAuthProvider extends ChangeNotifier implements AuthProvider {
   MockAuthProvider({this.sessionToReturn, this.errorToThrow});
@@ -224,6 +225,60 @@ void main() {
 
         expect(mockAuth.restoreCallCount, 2);
         expect(find.text('Student Dashboard Screen'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'consumes pending notification and navigates to complaint detail on cold start',
+      (tester) async {
+        final mockAuth = MockAuthProvider(
+          sessionToReturn: const AuthSession(
+            user: {'role': 'SUPERVISOR'},
+            role: 'SUPERVISOR',
+          ),
+        );
+
+        FcmService.instance.setPendingNotificationData({
+          'notification_type': 'COMPLAINT',
+          'reference_id': '31',
+        });
+
+        final router = GoRouter(
+          initialLocation: AppRoutes.splash,
+          routes: [
+            GoRoute(
+              path: AppRoutes.splash,
+              builder: (context, state) => const SplashScreen(),
+            ),
+            GoRoute(
+              path: AppRoutes.supervisorDashboard,
+              builder: (_, state) {
+                return const Scaffold(body: Text('Supervisor Dashboard Screen'));
+              },
+            ),
+            GoRoute(
+              path: '/supervisor/complaints/:complaintId',
+              builder: (_, state) {
+                return Scaffold(
+                  body: Text(
+                    'Complaint Detail ${state.pathParameters['complaintId']}',
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider<AuthProvider>.value(
+            value: mockAuth,
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(FcmService.instance.pendingNotificationData, isNull);
+        expect(find.text('Complaint Detail 31'), findsOneWidget);
       },
     );
   });

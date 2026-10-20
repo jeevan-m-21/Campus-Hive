@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/academic_department.dart';
 import '../models/organization.dart';
 import '../services/auth_service.dart';
+import '../services/fcm_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider({AuthService? authService})
@@ -39,6 +40,9 @@ class AuthProvider extends ChangeNotifier {
       final session = await _authService.restoreSession();
       _session = session;
       _isInitialized = true;
+      if (session != null) {
+        _syncFcmToken();
+      }
       return session;
     } on AuthNetworkException catch (e) {
       _restoreError = e.message;
@@ -85,6 +89,7 @@ class AuthProvider extends ChangeNotifier {
       );
       _session = session;
       _isInitialized = true;
+      _syncFcmToken();
       return session;
     } finally {
       _isLoading = false;
@@ -108,7 +113,42 @@ class AuthProvider extends ChangeNotifier {
       );
       _session = session;
       _isInitialized = true;
+      _syncFcmToken();
       return session;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<AuthSession> updateProfile({
+    String? fullName,
+    String? phone,
+    String? profileImage,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final updatedSession = await _authService.updateProfile(
+        fullName: fullName,
+        phone: phone,
+        profileImage: profileImage,
+      );
+      _session = updatedSession;
+      return updatedSession;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<AuthSession> uploadProfileImage(String filePath) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final updatedSession = await _authService.uploadProfileImage(filePath);
+      _session = updatedSession;
+      return updatedSession;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -120,6 +160,9 @@ class AuthProvider extends ChangeNotifier {
     _session = null;
     _restoreError = null;
     _isInitialized = true;
+    try {
+      FcmService.instance.onUserSignedOut();
+    } catch (_) {}
     notifyListeners();
   }
 
@@ -127,5 +170,11 @@ class AuthProvider extends ChangeNotifier {
     if (_session != null) {
       await _authService.recordActivity();
     }
+  }
+
+  void _syncFcmToken() {
+    try {
+      FcmService.instance.onUserAuthenticated();
+    } catch (_) {}
   }
 }

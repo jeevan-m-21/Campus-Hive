@@ -24,6 +24,7 @@ firebase-admin==6.6.0
 
 # File Upload
 Werkzeug==3.0.6
+Pillow==11.3.0
 
 # Data Validation
 marshmallow==3.23.1

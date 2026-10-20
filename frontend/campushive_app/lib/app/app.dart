@@ -7,10 +7,45 @@ import '../providers/announcement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/supervisor_complaint_provider.dart';
+import '../services/fcm_service.dart';
 import 'routes.dart';
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
   const App({super.key});
+
+  @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  @override
+  void initState() {
+    super.initState();
+    _setupFcm();
+  }
+
+  void _setupFcm() {
+    FcmService.instance.initialize(
+      onForegroundMessage: (message) {
+        final ctx = AppRoutes.rootNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          try {
+            Provider.of<NotificationProvider>(ctx, listen: false)
+                .loadUnreadCount();
+          } catch (_) {}
+        }
+      },
+      onNotificationTapped: (data) {
+        final ctx = AppRoutes.rootNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          try {
+            Provider.of<NotificationProvider>(ctx, listen: false)
+                .loadUnreadCount();
+          } catch (_) {}
+        }
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

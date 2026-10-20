@@ -151,6 +151,41 @@ class AdminComplaintProvider extends ChangeNotifier {
     return result;
   }
 
+  Future<Supervisor> createSupervisor({
+    required String fullName,
+    required String email,
+    required String password,
+    required String employeeId,
+    required int departmentId,
+    String? phone,
+  }) async {
+    _isLoadingSupervisors = true;
+    _supervisorsErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final supervisor = await _complaintService.createSupervisor(
+        fullName: fullName,
+        email: email,
+        password: password,
+        employeeId: employeeId,
+        departmentId: departmentId,
+        phone: phone,
+      );
+      await loadSupervisors(force: true);
+      return supervisor;
+    } on ComplaintException catch (e) {
+      _supervisorsErrorMessage = e.message;
+      rethrow;
+    } catch (_) {
+      _supervisorsErrorMessage = 'Failed to create supervisor.';
+      rethrow;
+    } finally {
+      _isLoadingSupervisors = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadComplaints({bool refresh = false, int? targetPage}) async {
     if (!refresh && _complaints.isNotEmpty && targetPage == null) return;
 

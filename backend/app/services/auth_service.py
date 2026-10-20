@@ -7,6 +7,7 @@ verifies Firebase ID tokens and syncs the authenticated user record to MySQL.
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -14,6 +15,8 @@ import firebase_admin
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials
 from flask import current_app
+from PIL import Image
+from werkzeug.utils import secure_filename
 
 from app.database import db
 from app.models import User, Organization, Department, AcademicDepartment
@@ -490,4 +493,454 @@ class AuthService:
 
         return {
             'user': AuthService._serialize_user(user),
+        }
+
+    @staticmethod
+    def _is_safe_image_url(url: Optional[str]) -> bool:
+        if not url or not isinstance(url, str):
+            return False
+        trimmed = url.strip()
+        if not trimmed:
+            return False
+        if '..' in trimmed:
+            return False
+        if any(c in trimmed for c in ('\r', '\n', '\t', ' ')):
+            return False
+        lower_url = trimmed.lower()
+        if lower_url.startswith(('javascript:', 'data:', 'vbscript:', 'file:', '//')):
+            return False
+        return True
+
+    @staticmethod
+    def update_profile(
+        current_user: User,
+        data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Update authenticated user's profile with approved editable fields.
+
+        Permitted fields: 'full_name', 'phone', 'profile_image'.
+        All other fields are rejected with ValidationError.
+        """
+        if current_user is None:
+            raise AuthenticationError('User is not authenticated.')
+
+        if not current_user.is_active:
+            raise AuthorizationError('User account is inactive.')
+
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a valid JSON object.')
+
+        if not data:
+            raise ValidationError('At least one profile field must be provided for update.')
+
+        allowed_fields = {'full_name', 'phone', 'profile_image'}
+        unsupported = set(data.keys()) - allowed_fields
+        if unsupported:
+            disallowed = sorted(list(unsupported))
+            raise ValidationError(f"Field '{disallowed[0]}' cannot be modified.")
+
+        if 'full_name' in data:
+            full_name = data['full_name']
+            if not isinstance(full_name, str):
+                raise ValidationError('full_name must be a string.')
+            trimmed_name = full_name.strip()
+            if not trimmed_name:
+                raise ValidationError('full_name cannot be empty.')
+            if len(trimmed_name) > 100:
+                raise ValidationError('full_name must be 100 characters or fewer.')
+            current_user.full_name = trimmed_name
+
+        if 'phone' in data:
+            phone = data['phone']
+            if phone is None:
+                current_user.phone = None
+            elif isinstance(phone, str):
+                trimmed_phone = phone.strip()
+                if not trimmed_phone:
+                    current_user.phone = None
+                elif len(trimmed_phone) > 15:
+                    raise ValidationError('phone must be 15 characters or fewer.')
+                else:
+                    current_user.phone = trimmed_phone
+            else:
+                raise ValidationError('phone must be a string or null.')
+
+        if 'profile_image' in data:
+            profile_image = data['profile_image']
+            if profile_image is None:
+                current_user.profile_image = None
+            elif isinstance(profile_image, str):
+                trimmed_image = profile_image.strip()
+                if not trimmed_image:
+                    current_user.profile_image = None
+                elif len(trimmed_image) > 255:
+                    raise ValidationError('profile_image must be 255 characters or fewer.')
+                elif not AuthService._is_safe_image_url(trimmed_image):
+                    raise ValidationError('Invalid profile_image URL.')
+                else:
+                    current_user.profile_image = trimmed_image
+            else:
+                raise ValidationError('profile_image must be a string or null.')
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            raise AuthServiceError('Unable to update profile.') from exc
+
+        return {
+            'user': AuthService._serialize_user(current_user),
+        }
+
+    @staticmethod
+    def _cleanup_old_profile_image(old_image_url: Optional[str], current_user_id: int) -> None:
+        """Remove previous profile image file if internal, managed, and unreferenced."""
+        if not old_image_url or not isinstance(old_image_url, str):
+            return
+
+        trimmed = old_image_url.strip()
+        prefix = '/uploads/profile/'
+        alt_prefix = 'uploads/profile/'
+
+        if trimmed.startswith(prefix):
+            filename = trimmed[len(prefix):]
+        elif trimmed.startswith(alt_prefix):
+            filename = trimmed[len(alt_prefix):]
+        else:
+            # External or from another module (complaints, lost_found, etc.) -> preserve
+            return
+
+        # Path traversal guard for extracted filename
+        if not filename or '/' in filename or '\\' in filename or '..' in filename:
+            current_app.logger.warning(f"Unsafe filename in old profile image path: {filename}")
+            return
+
+        # Check if another user references this image
+        other = User.query.filter(
+            User.user_id != current_user_id,
+            User.profile_image == trimmed,
+        ).first()
+        if other is not None:
+            current_app.logger.info(
+                f"Skipping old profile image deletion; shared with user {other.user_id}"
+            )
+            return
+
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', './uploads')
+        profile_dir = os.path.abspath(os.path.join(upload_folder, 'profile'))
+        old_filepath = os.path.abspath(os.path.join(profile_dir, filename))
+
+        if os.path.commonpath([old_filepath, profile_dir]) != profile_dir:
+            current_app.logger.warning(f"Path traversal detected for old profile image: {old_filepath}")
+            return
+
+        try:
+            if os.path.exists(old_filepath) and os.path.isfile(old_filepath):
+                os.remove(old_filepath)
+                current_app.logger.info(f"Cleaned up old profile image: {old_filepath}")
+        except Exception as exc:
+            current_app.logger.warning(f"Could not remove old profile image {old_filepath}: {exc}")
+
+    @staticmethod
+    def upload_profile_image(
+        current_user: User,
+        file: Any,
+    ) -> Dict[str, Any]:
+        """Upload and associate a new profile picture for the authenticated user."""
+        if current_user is None:
+            raise AuthenticationError('User is not authenticated.')
+
+        if not current_user.is_active:
+            raise AuthorizationError('User account is inactive.')
+
+        if not file or not getattr(file, 'filename', None):
+            raise ValidationError('No image selected.')
+
+        filename = secure_filename(file.filename)
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'webp'}
+        if ext not in allowed_extensions:
+            allowed_list = sorted(list(allowed_extensions))
+            raise ValidationError(
+                f'File type not allowed. Allowed extensions: {", ".join(allowed_list)}'
+            )
+
+        client_mime = getattr(file, 'mimetype', None)
+        allowed_mimetypes = {'image/jpeg', 'image/png', 'image/webp'}
+        if client_mime and client_mime != 'application/octet-stream':
+            if client_mime.lower() not in allowed_mimetypes:
+                raise ValidationError('Invalid MIME type for image.')
+
+        # 5 MB maximum size check
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+
+        if file_size <= 0:
+            raise ValidationError('File cannot be empty.')
+        if file_size > 5 * 1024 * 1024:
+            raise ValidationError('File size exceeds 5MB limit.')
+
+        # Pillow image content verification
+        try:
+            img = Image.open(file.stream)
+            img.verify()
+            img_format = (img.format or '').upper()
+        except Exception as exc:
+            raise ValidationError('Invalid or corrupted image file.') from exc
+        finally:
+            file.seek(0)
+
+        allowed_formats = {
+            'JPEG': 'jpg',
+            'PNG': 'png',
+            'WEBP': 'webp',
+        }
+        if img_format not in allowed_formats:
+            raise ValidationError(
+                'Image format not supported. Supported formats: JPEG, PNG, WEBP'
+            )
+
+        canonical_ext = allowed_formats[img_format]
+        upload_folder = os.path.abspath(current_app.config.get('UPLOAD_FOLDER', './uploads'))
+        profile_dir = os.path.abspath(os.path.join(upload_folder, 'profile'))
+        os.makedirs(profile_dir, exist_ok=True)
+
+        new_filename = f"{uuid.uuid4().hex}.{canonical_ext}"
+        filepath = os.path.abspath(os.path.join(profile_dir, new_filename))
+
+        if os.path.commonpath([filepath, profile_dir]) != profile_dir:
+            raise ValidationError('Invalid filename or path.')
+
+        try:
+            file.save(filepath)
+        except Exception as exc:
+            current_app.logger.exception('Failed to save profile image')
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+            raise AuthServiceError('Failed to save image file.', status_code=500, error_code='server_error') from exc
+
+        old_profile_image = current_user.profile_image
+        new_image_url = f"/uploads/profile/{new_filename}"
+        current_user.profile_image = new_image_url
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+            raise AuthServiceError('Unable to update profile image in database.', status_code=500, error_code='server_error') from exc
+
+        # Clean up old profile image if safe
+        AuthService._cleanup_old_profile_image(old_profile_image, current_user.user_id)
+
+        return {
+            'user': AuthService._serialize_user(current_user),
+            'image_url': new_image_url,
+        }
+
+    @staticmethod
+    def _create_firebase_user(email: str, password: str, display_name: str) -> str:
+        """Create a user record in Firebase Auth via Admin SDK."""
+        AuthService._ensure_firebase_app()
+        try:
+            user_record = firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=display_name,
+            )
+            return user_record.uid
+        except firebase_auth.EmailAlreadyExistsError as exc:
+            raise ConflictError('A user with this email already exists in Firebase.') from exc
+        except Exception as exc:
+            raise AuthServiceError(f'Failed to create user in Firebase: {exc}') from exc
+
+    @staticmethod
+    def _delete_firebase_user(firebase_uid: str) -> None:
+        """Delete a user record in Firebase Auth via Admin SDK (cleanup helper)."""
+        try:
+            AuthService._ensure_firebase_app()
+            firebase_auth.delete_user(firebase_uid)
+        except Exception as exc:
+            current_app.logger.warning(
+                f"Failed to delete Firebase user {firebase_uid} during cleanup: {exc}"
+            )
+
+    @staticmethod
+    def create_supervisor(
+        admin_user: User,
+        data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Create a new Supervisor user account under the Organization Admin's organization.
+
+        Enforces:
+        - Admin authentication, active status, and ORG_ADMIN or SUPER_ADMIN role.
+        - Organization isolation: uses admin_user.organization_id exclusively.
+        - Department belonging to the admin's organization.
+        - Duplicate checks for email and employee ID.
+        - Firebase user creation followed by MySQL user creation.
+        - Immediate Firebase user cleanup if MySQL persistence fails.
+        """
+        if admin_user is None:
+            raise AuthenticationError('User is not authenticated.')
+
+        if not admin_user.is_active:
+            raise AuthorizationError('Administrator account is inactive.')
+
+        admin_role = (admin_user.role or '').upper()
+        if admin_role not in ('ORG_ADMIN', 'SUPER_ADMIN'):
+            raise AuthorizationError('Only organization administrators can create supervisor accounts.')
+
+        organization_id = admin_user.organization_id
+        if not organization_id:
+            raise ValidationError('Administrator must belong to an organization.')
+
+        organization = Organization.query.filter_by(organization_id=organization_id).first()
+        if organization is None:
+            raise NotFoundError('Organization not found.')
+        if not organization.is_active:
+            raise ValidationError('Organization is inactive.')
+
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a valid JSON object.')
+
+        # Role escalation guard
+        requested_role = data.get('role')
+        if requested_role is not None:
+            normalized_role = str(requested_role).strip().upper()
+            if normalized_role != 'SUPERVISOR':
+                raise ValidationError('Supervisor accounts must have role SUPERVISOR.')
+
+        # Validate full_name
+        raw_name = data.get('full_name')
+        if not raw_name or not isinstance(raw_name, str) or not raw_name.strip():
+            raise ValidationError('full_name is required.')
+        full_name = raw_name.strip()
+        if len(full_name) > 100:
+            raise ValidationError('full_name must be 100 characters or fewer.')
+
+        # Validate email
+        raw_email = data.get('email')
+        if not raw_email or not isinstance(raw_email, str) or not raw_email.strip():
+            raise ValidationError('email is required.')
+        email = raw_email.strip().lower()
+        if len(email) > 100:
+            raise ValidationError('email must be 100 characters or fewer.')
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            raise ValidationError('Invalid email format.')
+
+        if organization.email_domain:
+            email_domain = email.split('@')[-1].lower()
+            if email_domain != organization.email_domain.lower():
+                raise ValidationError(
+                    f"Please register using your {organization.email_domain} email address."
+                )
+
+        # Validate password
+        raw_password = data.get('password')
+        if not raw_password or not isinstance(raw_password, str):
+            raise ValidationError('password is required.')
+        if len(raw_password) < 6:
+            raise ValidationError('Password must be at least 6 characters long.')
+
+        # Validate USN or employee ID
+        raw_emp_id = data.get('usn_or_employee_id') or data.get('employee_id')
+        if not raw_emp_id or not str(raw_emp_id).strip():
+            raise ValidationError('usn_or_employee_id is required.')
+        employee_id = str(raw_emp_id).strip()
+        if len(employee_id) > 30:
+            raise ValidationError('usn_or_employee_id must be 30 characters or fewer.')
+
+        # Validate department
+        raw_dept_id = data.get('department_id')
+        if raw_dept_id in (None, ''):
+            raise ValidationError('department_id is required.')
+        try:
+            department_id = int(raw_dept_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError('department_id must be an integer.') from exc
+
+        department = Department.query.filter_by(
+            department_id=department_id,
+            organization_id=organization_id,
+        ).first()
+        if department is None:
+            raise ValidationError('Department not found in your organization.')
+
+        # Validate optional phone
+        raw_phone = data.get('phone')
+        phone = None
+        if raw_phone is not None:
+            phone_str = str(raw_phone).strip()
+            if phone_str:
+                if len(phone_str) > 15:
+                    raise ValidationError('phone must be 15 characters or fewer.')
+                phone = phone_str
+
+        # Check duplicates in MySQL
+        existing_email = User.query.filter(
+            db.func.lower(User.email) == email,
+        ).first()
+        if existing_email is not None:
+            raise ConflictError('A user with this email already exists.')
+
+        existing_emp = User.query.filter(
+            User.organization_id == organization_id,
+            db.func.lower(User.usn_or_employee_id) == employee_id.lower(),
+        ).first()
+        if existing_emp is not None:
+            raise ConflictError('A user with this employee ID already exists in your organization.')
+
+        # Create user in Firebase
+        firebase_uid = AuthService._create_firebase_user(
+            email=email,
+            password=raw_password,
+            display_name=full_name,
+        )
+
+        # Create user in MySQL
+        new_user = User(
+            organization_id=organization_id,
+            department_id=department.department_id,
+            academic_department_id=None,
+            full_name=full_name,
+            usn_or_employee_id=employee_id,
+            email=email,
+            firebase_uid=firebase_uid,
+            phone=phone,
+            role='SUPERVISOR',
+            is_active=True,
+        )
+        db.session.add(new_user)
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            AuthService._delete_firebase_user(firebase_uid)
+            raise AuthServiceError(
+                'Unable to persist supervisor user record.',
+                status_code=500,
+                error_code='server_error',
+            ) from exc
+
+        return {
+            'user': AuthService._serialize_user(new_user),
+            'supervisor': {
+                'user_id': new_user.user_id,
+                'full_name': new_user.full_name,
+                'email': new_user.email,
+                'department_id': new_user.department_id,
+                'department_name': department.department_name,
+                'phone': new_user.phone,
+                'usn_or_employee_id': new_user.usn_or_employee_id,
+                'is_active': bool(new_user.is_active),
+            },
         }

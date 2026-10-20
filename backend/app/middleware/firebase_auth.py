@@ -51,8 +51,11 @@ def _load_current_user(firebase_uid: str) -> User:
 	return user
 
 
-def _authenticate_request() -> User:
+def _authenticate_request(force: bool = False) -> User:
 	"""Authenticate the request and store the current user in flask.g."""
+
+	if not force and getattr(g, 'current_user', None) is not None:
+		return g.current_user
 
 	token = _extract_bearer_token()
 
