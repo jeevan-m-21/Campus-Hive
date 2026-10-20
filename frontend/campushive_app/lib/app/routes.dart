@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/org_admin/admin_shell.dart';
@@ -70,8 +71,15 @@ abstract final class AppRoutes {
   static String adminAnnouncementDetail(int announcementId) =>
       '/admin/announcements/$announcementId';
 
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
+  static GoRouter? _activeRouter;
+
+  static GoRouter get routerInstance => _activeRouter ?? router();
+
   static GoRouter router() {
-    return GoRouter(
+    _activeRouter = GoRouter(
+      navigatorKey: rootNavigatorKey,
       initialLocation: splash,
       routes: [
         GoRoute(
@@ -223,5 +231,6 @@ abstract final class AppRoutes {
         ),
       ],
     );
+    return _activeRouter!;
   }
 }

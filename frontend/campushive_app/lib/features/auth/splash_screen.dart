@@ -10,6 +10,7 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_loader.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/fcm_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({this.autoRestore = true, super.key});
@@ -49,6 +50,25 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
 
       if (session != null) {
+        final pendingData =
+            FcmService.instance.consumePendingNotificationData();
+        if (pendingData != null) {
+          final targetRoute = FcmService.resolveRouteForNotification(
+            pendingData,
+            role: session.role,
+          );
+          final dashboardRoute = _dashboardForRole(session.role);
+          if (_hasNavigated || !mounted) return;
+          _hasNavigated = true;
+          final router = GoRouter.of(context);
+          router.go(dashboardRoute);
+          if (targetRoute != dashboardRoute) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              router.push(targetRoute);
+            });
+          }
+          return;
+        }
         _navigateForRole(session.role);
       } else {
         _safeNavigate(AppRoutes.landing);
@@ -65,17 +85,21 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  void _navigateForRole(String role) {
+  String _dashboardForRole(String role) {
     final normalized = role.trim().toUpperCase();
     if (normalized == 'STUDENT') {
-      _safeNavigate(AppRoutes.studentDashboard);
+      return AppRoutes.studentDashboard;
     } else if (normalized == 'SUPERVISOR') {
-      _safeNavigate(AppRoutes.supervisorDashboard);
+      return AppRoutes.supervisorDashboard;
     } else if (normalized == 'ORG_ADMIN' || normalized == 'SUPER_ADMIN') {
-      _safeNavigate(AppRoutes.adminDashboard);
+      return AppRoutes.adminDashboard;
     } else {
-      _safeNavigate(AppRoutes.landing);
+      return AppRoutes.landing;
     }
+  }
+
+  void _navigateForRole(String role) {
+    _safeNavigate(_dashboardForRole(role));
   }
 
   void _safeNavigate(String route) {

@@ -433,6 +433,24 @@ class AuthService {
     }
   }
 
+  Future<bool> updateFcmToken(String fcmToken) async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) return false;
+    final idToken = await firebaseUser.getIdToken();
+    if (idToken == null || idToken.isEmpty) return false;
+
+    try {
+      await _apiClient.post(
+        ApiEndpoints.updateFcmToken,
+        idToken: idToken,
+        body: {'fcm_token': fcmToken},
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> recordActivity() async {
     final nowUtc = DateTime.now().toUtc();
     await _secureStorage.updateLastActive(nowUtc);

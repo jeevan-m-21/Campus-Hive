@@ -108,6 +108,19 @@ class NotificationService:
             current_app.logger.exception('Failed to stage notification creation')
             raise NotificationServiceError('Database failure while creating notification', 500, 'database_error') from exc
 
+        # Stage FCM push notification for post-commit dispatch
+        try:
+            from app.services.fcm_service import FcmService
+            FcmService.stage_notification(
+                user_id=user_id,
+                title=title,
+                message=message,
+                notification_type=normalized_type,
+                reference_id=reference_id,
+            )
+        except Exception:
+            current_app.logger.warning('Failed to stage FCM push notification for user %s', user_id)
+
         return notification
 
     @staticmethod
