@@ -14,6 +14,7 @@ abstract final class ApiEndpoints {
   static const uploadAnnouncementAttachment =
       '/announcements/upload-attachment';
   static const lostFound = '/lost-found';
+  static const uploadLostFoundImage = '$lostFound/upload-image';
   static const announcements = '/announcements';
   static const notifications = '/notifications';
   static const notificationsUnreadCount = '/notifications/unread-count';

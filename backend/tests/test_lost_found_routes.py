@@ -13,8 +13,11 @@ Unit and regression tests for Lost & Found endpoints:
 - Unauthenticated access prevention
 """
 
+import io
+import os
 from datetime import date, datetime
 from types import SimpleNamespace
+from PIL import Image
 import pytest
 
 from app import create_app
@@ -881,3 +884,373 @@ def test_valid_external_https_image_url_accepted(client, monkeypatch):
     })
     assert res.status_code == 201
     assert res.get_json()['data']['images'][0]['image_url'] == 'https://images.unsplash.com/photo-1546776310-eef45dd6d63c.jpg'
+
+
+# ==================== 10. DEDICATED UPLOAD AND CLEANUP ====================
+
+def _create_test_image(format='PNG'):
+    buf = io.BytesIO()
+    img = Image.new('RGB', (30, 30), color='teal')
+    img.save(buf, format=format)
+    buf.seek(0)
+    return buf
+
+
+def test_upload_lost_found_image_png_success(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    img_bytes = _create_test_image(format='PNG')
+    data = {
+        'image': (img_bytes, 'valid_lost_item.png', 'image/png'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 201
+    payload = res.get_json()['data']
+    assert payload['image_url'].startswith('/uploads/lost_found/')
+    assert payload['image_url'].endswith('.png')
+    assert payload['mime_type'] == 'image/png'
+    assert payload['file_size'] > 0
+
+    filename = payload['image_url'].split('/uploads/lost_found/')[-1]
+    saved_file = tmp_path / 'lost_found' / filename
+    assert saved_file.exists()
+    assert saved_file.stat().st_size == payload['file_size']
+
+
+def test_upload_lost_found_image_jpeg_success(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    img_bytes = _create_test_image(format='JPEG')
+    data = {
+        'file': (img_bytes, 'photo.jpg', 'image/jpeg'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 201
+    payload = res.get_json()['data']
+    assert payload['image_url'].startswith('/uploads/lost_found/')
+    assert payload['image_url'].endswith('.jpg')
+    assert payload['mime_type'] == 'image/jpeg'
+
+
+def test_upload_lost_found_image_webp_success(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    img_bytes = _create_test_image(format='WEBP')
+    data = {
+        'image': (img_bytes, 'item_snap.webp', 'image/webp'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 201
+    payload = res.get_json()['data']
+    assert payload['image_url'].startswith('/uploads/lost_found/')
+    assert payload['image_url'].endswith('.webp')
+    assert payload['mime_type'] == 'image/webp'
+
+
+def test_upload_lost_found_image_unauthenticated_401(client):
+    img_bytes = _create_test_image(format='PNG')
+    data = {
+        'image': (img_bytes, 'valid_lost_item.png', 'image/png'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 401
+
+
+def test_upload_lost_found_image_missing_file_400(client, monkeypatch):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+
+    # Empty form data
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data={},
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 400
+    assert 'No image file provided' in res.get_json()['message']
+
+    # Empty filename
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data={'image': (io.BytesIO(b''), '')},
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 400
+    assert 'No image selected' in res.get_json()['message']
+
+
+def test_upload_lost_found_image_invalid_extension_400(client, monkeypatch):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+
+    bad_files = ['doc.pdf', 'script.sh', 'hack.exe', 'animation.gif']
+    for bad_name in bad_files:
+        res = client.post(
+            '/api/v1/lost-found/upload-image',
+            data={'image': (io.BytesIO(b'fake content'), bad_name)},
+            content_type='multipart/form-data',
+        )
+        assert res.status_code == 400
+        assert 'File type not allowed' in res.get_json()['message']
+
+
+def test_upload_lost_found_image_spoofed_mime_type_400(client, monkeypatch):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+
+    # Non-image content with an image extension and image MIME
+    data = {
+        'image': (io.BytesIO(b'#!/bin/bash\necho Malicious executable script'), 'virus.jpg', 'image/jpeg'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 400
+    assert 'Invalid or corrupted image file' in res.get_json()['message']
+
+
+def test_upload_lost_found_image_mismatched_client_mime_400(client, monkeypatch):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+
+    img_bytes = _create_test_image(format='PNG')
+    data = {
+        'image': (img_bytes, 'valid.png', 'application/pdf'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 400
+    assert 'Invalid MIME type' in res.get_json()['message']
+
+
+def test_upload_lost_found_image_oversized_400(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    # Create dummy bytes stream exceeding 10MB
+    oversized_buf = io.BytesIO(b'0' * (10 * 1024 * 1024 + 1024))
+    data = {
+        'image': (oversized_buf, 'huge.jpg', 'image/jpeg'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 400
+    assert 'File size exceeds 10MB limit' in res.get_json()['message']
+
+
+def test_uploaded_lost_found_image_serves_200(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    img_bytes = _create_test_image(format='PNG')
+    data = {
+        'image': (img_bytes, 'test_serve.png', 'image/png'),
+    }
+    res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data=data,
+        content_type='multipart/form-data',
+    )
+    assert res.status_code == 201
+    image_url = res.get_json()['data']['image_url']
+
+    # Now verify the global /uploads/<path:filename> route serves this image
+    serve_res = client.get(image_url)
+    assert serve_res.status_code == 200
+    assert serve_res.content_type == 'image/png'
+    assert len(serve_res.data) > 0
+
+
+def test_delete_lost_found_image_cleans_up_disk_file(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    # Upload image
+    img_bytes = _create_test_image(format='PNG')
+    upload_res = client.post(
+        '/api/v1/lost-found/upload-image',
+        data={'image': (img_bytes, 'to_delete.png', 'image/png')},
+        content_type='multipart/form-data',
+    )
+    image_url = upload_res.get_json()['data']['image_url']
+    filename = image_url.split('/uploads/lost_found/')[-1]
+    saved_file = tmp_path / 'lost_found' / filename
+    assert saved_file.exists()
+
+    # Associate image with item 1
+    add_res = client.post('/api/v1/lost-found/1/images', json={'image_url': image_url})
+    assert add_res.status_code == 201
+    image_id = add_res.get_json()['data']['image_id']
+
+    # Delete the image
+    del_res = client.delete(f'/api/v1/lost-found/images/{image_id}')
+    assert del_res.status_code == 200
+
+    # Physical file should be safely removed
+    assert not saved_file.exists()
+
+
+def test_delete_lost_found_item_cleans_up_all_item_files(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    # Upload two images
+    img1_bytes = _create_test_image(format='PNG')
+    up1 = client.post('/api/v1/lost-found/upload-image', data={'image': (img1_bytes, 'i1.png', 'image/png')}, content_type='multipart/form-data')
+    url1 = up1.get_json()['data']['image_url']
+    file1 = tmp_path / 'lost_found' / url1.split('/')[-1]
+
+    img2_bytes = _create_test_image(format='JPEG')
+    up2 = client.post('/api/v1/lost-found/upload-image', data={'file': (img2_bytes, 'i2.jpg', 'image/jpeg')}, content_type='multipart/form-data')
+    url2 = up2.get_json()['data']['image_url']
+    file2 = tmp_path / 'lost_found' / url2.split('/')[-1]
+
+    assert file1.exists()
+    assert file2.exists()
+
+    # Create listing with url1
+    create_res = client.post('/api/v1/lost-found', json={
+        'item_type': 'LOST',
+        'title': 'Item with Multiple Images',
+        'description': 'Testing cleanup on item deletion',
+        'image_url': url1,
+    })
+    assert create_res.status_code == 201
+    new_item_id = create_res.get_json()['data']['item_id']
+
+    # Add url2 as second image
+    add2_res = client.post(f'/api/v1/lost-found/{new_item_id}/images', json={'image_url': url2})
+    assert add2_res.status_code == 201
+
+    # Delete the item as Org Admin (moderation role authorized to delete listings)
+    mock_auth(monkeypatch, user_id=20, role='ORG_ADMIN', org_id=1)
+    del_res = client.delete(f'/api/v1/lost-found/{new_item_id}')
+    assert del_res.status_code == 200
+
+    # Both files on disk must be unlinked
+    assert not file1.exists()
+    assert not file2.exists()
+
+
+def test_delete_image_preserves_file_if_referenced_elsewhere(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    img_bytes = _create_test_image(format='PNG')
+    up = client.post('/api/v1/lost-found/upload-image', data={'image': (img_bytes, 'shared.png', 'image/png')}, content_type='multipart/form-data')
+    shared_url = up.get_json()['data']['image_url']
+    saved_file = tmp_path / 'lost_found' / shared_url.split('/')[-1]
+    assert saved_file.exists()
+
+    # Associate shared_url with Item 1
+    add1 = client.post('/api/v1/lost-found/1/images', json={'image_url': shared_url})
+    img1_id = add1.get_json()['data']['image_id']
+
+    # Also associate shared_url in a chat comment on Item 1
+    comment_res = client.post('/api/v1/lost-found/1/comments', json={
+        'message_type': 'IMAGE',
+        'image_url': shared_url,
+    })
+    assert comment_res.status_code == 201
+
+    # Delete the image row from Item 1
+    del_res = client.delete(f'/api/v1/lost-found/images/{img1_id}')
+    assert del_res.status_code == 200
+
+    # Physical file MUST still exist because the chat comment still references it!
+    assert saved_file.exists()
+
+
+def test_delete_never_deletes_complaint_or_external_urls(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    # Seeded image 1 on Item 1 has image_url='/uploads/complaints/backpack.jpg'
+    complaint_dir = tmp_path / 'complaints'
+    complaint_dir.mkdir(parents=True, exist_ok=True)
+    fake_complaint_file = complaint_dir / 'backpack.jpg'
+    fake_complaint_file.write_bytes(b'complaint image content')
+    assert fake_complaint_file.exists()
+
+    # Delete image 1
+    del_res = client.delete('/api/v1/lost-found/images/1')
+    assert del_res.status_code == 200
+
+    # Complaint file must NOT be deleted
+    assert fake_complaint_file.exists()
+
+
+def test_delete_database_failure_preserves_physical_files(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    img_bytes = _create_test_image(format='PNG')
+    up = client.post('/api/v1/lost-found/upload-image', data={'image': (img_bytes, 'rollback_test.png', 'image/png')}, content_type='multipart/form-data')
+    image_url = up.get_json()['data']['image_url']
+    saved_file = tmp_path / 'lost_found' / image_url.split('/')[-1]
+    assert saved_file.exists()
+
+    add_res = client.post('/api/v1/lost-found/1/images', json={'image_url': image_url})
+    img_id = add_res.get_json()['data']['image_id']
+
+    # Simulate database commit error
+    def fail_commit():
+        raise RuntimeError("Database connection terminated")
+
+    monkeypatch.setattr(db.session, 'commit', fail_commit)
+
+    with pytest.raises(RuntimeError):
+        client.delete(f'/api/v1/lost-found/images/{img_id}')
+
+    # Physical file must still exist after rollback
+    assert saved_file.exists()
+
+
+def test_create_lost_found_with_dedicated_upload_url(client, monkeypatch, lf_test_app, tmp_path):
+    mock_auth(monkeypatch, user_id=10, role='STUDENT', org_id=1)
+    lf_test_app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    img_bytes = _create_test_image(format='JPEG')
+    up = client.post('/api/v1/lost-found/upload-image', data={'image': (img_bytes, 'flow.jpg', 'image/jpeg')}, content_type='multipart/form-data')
+    assert up.status_code == 201
+    image_url = up.get_json()['data']['image_url']
+
+    create_res = client.post('/api/v1/lost-found', json={
+        'item_type': 'FOUND',
+        'title': 'Found Sports Watch',
+        'description': 'Found near the cricket pitch',
+        'category': 'Electronics',
+        'location': 'Cricket Ground',
+        'image_url': image_url,
+    })
+    assert create_res.status_code == 201
+    created_item = create_res.get_json()['data']
+    assert created_item['images'][0]['image_url'] == image_url
+
+    # Check detail endpoint
+    get_res = client.get(f"/api/v1/lost-found/{created_item['item_id']}")
+    assert get_res.status_code == 200
+    assert get_res.get_json()['data']['images'][0]['image_url'] == image_url

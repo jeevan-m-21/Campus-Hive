@@ -1,10 +1,14 @@
 """Lost and found routes for CampusHive."""
 
+import os
+import uuid
 from datetime import date, datetime
 from urllib.parse import urlparse
 
-from flask import Blueprint, g, request
+from flask import Blueprint, current_app, g, request
+from PIL import Image
 from sqlalchemy import or_
+from werkzeug.utils import secure_filename
 
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
@@ -21,6 +25,10 @@ _MAX_TITLE_LENGTH = 200
 _MAX_CATEGORY_LENGTH = 100
 _MAX_LOCATION_LENGTH = 255
 _MAX_IMAGE_URL_LENGTH = 500
+_ALLOWED_LF_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+_ALLOWED_LF_IMAGE_FORMATS = {'JPEG': 'image/jpeg', 'PNG': 'image/png', 'WEBP': 'image/webp'}
+_ALLOWED_LF_MIMETYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/jpg'}
+_MAX_LF_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 def _normalize_value(value):
@@ -79,6 +87,50 @@ def _is_safe_image_url(url):
         except Exception:
             return False
     return False
+
+
+def _safe_remove_lost_found_file(image_url):
+    """
+    Safely delete an uploaded Lost & Found image file from disk if no other record references it.
+    Only touches files under /uploads/lost_found/. Never touches /uploads/complaints/ or external URLs.
+    Validates filesystem path to prevent path traversal.
+    """
+    if not image_url or not isinstance(image_url, str):
+        return
+
+    url_trimmed = image_url.strip()
+    if not url_trimmed.startswith('/uploads/lost_found/'):
+        return
+
+    # Check if any remaining LostFoundImage or LostFoundChat references this URL
+    other_image = LostFoundImage.query.filter_by(image_url=url_trimmed).first()
+    if other_image is not None:
+        return
+
+    other_chat = LostFoundChat.query.filter_by(image_url=url_trimmed).first()
+    if other_chat is not None:
+        return
+
+    filename = url_trimmed[len('/uploads/lost_found/'):]
+    if not filename or '/' in filename or '\\' in filename or '..' in filename:
+        current_app.logger.warning(f"Refusing to delete unsafe filename: {filename}")
+        return
+
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', './uploads')
+    lf_dir = os.path.abspath(os.path.join(upload_folder, 'lost_found'))
+    filepath = os.path.abspath(os.path.join(lf_dir, filename))
+
+    # Strict path traversal check
+    if os.path.commonpath([filepath, lf_dir]) != lf_dir:
+        current_app.logger.warning(f"Path traversal detected during file removal: {filepath}")
+        return
+
+    try:
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            os.remove(filepath)
+    except Exception as exc:
+        current_app.logger.warning(f"Could not remove lost and found file {filepath}: {exc}")
+
 
 
 
@@ -462,6 +514,17 @@ def delete_lost_found(item_id):
     if not _can_delete_lost_found(item):
         return error_response('forbidden', 'You cannot delete this item', 403)
 
+    files_to_check = []
+    if item.images:
+        for img in item.images:
+            if img.image_url and img.image_url.startswith('/uploads/lost_found/'):
+                files_to_check.append(img.image_url)
+
+    if item.chat_messages:
+        for chat in item.chat_messages:
+            if chat.image_url and chat.image_url.startswith('/uploads/lost_found/'):
+                files_to_check.append(chat.image_url)
+
     db.session.delete(item)
 
     try:
@@ -469,6 +532,9 @@ def delete_lost_found(item_id):
     except Exception:
         db.session.rollback()
         raise
+
+    for f_url in set(files_to_check):
+        _safe_remove_lost_found_file(f_url)
 
     return success_response({}, 'Lost and found item deleted', 200)
 
@@ -639,6 +705,7 @@ def delete_lost_found_image(image_id):
             return error_response('validation_error', 'Cannot modify images of a closed post', 400)
         return error_response('forbidden', 'You cannot delete this image', 403)
 
+    f_url = image.image_url
     db.session.delete(image)
 
     try:
@@ -647,4 +714,98 @@ def delete_lost_found_image(image_id):
         db.session.rollback()
         raise
 
+    if f_url and f_url.startswith('/uploads/lost_found/'):
+        _safe_remove_lost_found_file(f_url)
+
     return success_response({}, 'Image deleted', 200)
+
+
+@lf_bp.route('/upload-image', methods=['POST'])
+@firebase_login_required
+@role_required()
+def upload_lost_found_image():
+    """Upload an image for a lost and found item or chat comment."""
+    if 'image' not in request.files and 'file' not in request.files:
+        return error_response('validation_error', 'No image file provided', 400)
+
+    file = request.files.get('image') or request.files.get('file')
+    if not file or not file.filename:
+        return error_response('validation_error', 'No image selected', 400)
+
+    original_filename = secure_filename(file.filename)
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in _ALLOWED_LF_EXTENSIONS:
+        allowed_list = sorted(_ALLOWED_LF_EXTENSIONS)
+        return error_response(
+            'validation_error',
+            f'File type not allowed. Allowed extensions: {", ".join(allowed_list)}',
+            400,
+        )
+
+    # Validate client-supplied MIME type if provided
+    client_mime = getattr(file, 'mimetype', None)
+    if client_mime and client_mime != 'application/octet-stream':
+        if client_mime.lower() not in _ALLOWED_LF_MIMETYPES:
+            return error_response('validation_error', 'Invalid MIME type for image', 400)
+
+    # Check file size (10MB limit)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+
+    if file_size <= 0:
+        return error_response('validation_error', 'File cannot be empty', 400)
+    if file_size > _MAX_LF_IMAGE_SIZE:
+        return error_response('validation_error', 'File size exceeds 10MB limit', 400)
+
+    # Validate actual image content with PIL
+    try:
+        img = Image.open(file.stream)
+        img.verify()
+        img_format = (img.format or '').upper()
+    except Exception:
+        return error_response('validation_error', 'Invalid or corrupted image file', 400)
+    finally:
+        file.seek(0)
+
+    if img_format not in _ALLOWED_LF_IMAGE_FORMATS:
+        return error_response(
+            'validation_error',
+            'Image format not supported. Supported formats: JPG, JPEG, PNG, WEBP',
+            400,
+        )
+
+    canonical_mime = _ALLOWED_LF_IMAGE_FORMATS[img_format]
+
+    upload_dir = os.path.abspath(
+        os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'lost_found')
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    filepath = os.path.abspath(os.path.join(upload_dir, filename))
+
+    if os.path.commonpath([filepath, upload_dir]) != upload_dir:
+        return error_response('validation_error', 'Invalid filename or path', 400)
+
+    try:
+        file.save(filepath)
+    except Exception:
+        current_app.logger.exception('Failed to save lost and found image')
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+        return error_response('server_error', 'Failed to save image file', 500)
+
+    image_url = f"/uploads/lost_found/{filename}"
+    return success_response(
+        {
+            'image_url': image_url,
+            'file_size': file_size,
+            'mime_type': canonical_mime,
+        },
+        'Image uploaded successfully',
+        201,
+    )
