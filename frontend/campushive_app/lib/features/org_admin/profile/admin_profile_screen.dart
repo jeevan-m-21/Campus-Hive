@@ -419,6 +419,14 @@ class _ProfileActions extends StatelessWidget {
           ),
         ),
         AppButton(
+          label: 'Manage Supervisors',
+          icon: Icons.badge_outlined,
+          variant: AppButtonVariant.outlined,
+          expand: true,
+          onPressed: () => context.push(AppRoutes.adminSupervisors),
+        ),
+        const SizedBox(height: AppDimensions.spacingSmall),
+        AppButton(
           label: 'Change Password',
           icon: Icons.lock_outline,
           variant: AppButtonVariant.outlined,

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../features/org_admin/admin_shell.dart';
 import '../features/org_admin/complaints/admin_complaint_detail_screen.dart';
 import '../features/org_admin/notifications/admin_notifications_screen.dart';
+import '../features/org_admin/users/admin_supervisors_screen.dart';
 import '../features/auth/landing_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -49,6 +50,7 @@ abstract final class AppRoutes {
   static const adminAnnouncements = '/admin/announcements';
   static const adminProfile = '/admin/profile';
   static const adminNotifications = '/admin/notifications';
+  static const adminSupervisors = '/admin/supervisors';
 
   static String studentComplaintDetail(int complaintId) =>
       '/student/complaints/$complaintId';
@@ -214,6 +216,10 @@ abstract final class AppRoutes {
             announcementId:
                 int.tryParse(state.pathParameters['announcementId'] ?? '') ?? 0,
           ),
+        ),
+        GoRoute(
+          path: adminSupervisors,
+          builder: (context, state) => const AdminSupervisorsScreen(),
         ),
       ],
     );

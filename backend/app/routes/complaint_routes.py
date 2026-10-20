@@ -8,6 +8,7 @@ from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import Complaint, ComplaintSupport, ComplaintChat, ComplaintImage, ComplaintStatusHistory, Department, User
 from app.services.assignment_service import AssignmentService
+from app.services.auth_service import AuthService, AuthServiceError
 from app.services.notification_service import NotificationService, NotificationServiceError
 from app.services.priority_service import PriorityService
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
@@ -115,11 +116,29 @@ def list_supervisors():
             'department_id': s.department_id,
             'department_name': s.department.department_name if s.department else None,
             'phone': s.phone,
+            'usn_or_employee_id': s.usn_or_employee_id,
             'is_active': bool(s.is_active),
         }
         for s in supervisors
     ]
     return success_response(data, 'Supervisors retrieved successfully', 200)
+
+
+@complaint_bp.route('/supervisors', methods=['POST'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPER_ADMIN')
+def create_supervisor():
+    """Create a new Supervisor user account for the current organization."""
+    payload = _get_request_data()
+    try:
+        result = AuthService.create_supervisor(g.current_user, payload)
+    except AuthServiceError as error:
+        return error_response(error.error_code, error.message, error.status_code)
+    except Exception as exc:
+        current_app.logger.exception('Unexpected error creating supervisor')
+        return error_response('server_error', 'An unexpected error occurred.', 500)
+
+    return success_response(result, 'Supervisor created successfully', 201)
 
 
 @complaint_bp.route('/departments/<int:department_id>/supervisor', methods=['POST'])
@@ -605,8 +624,7 @@ def add_comment(complaint_id):
         return error
 
     if g.current_user.role.upper() == 'SUPERVISOR' and complaint.supervisor_id != g.current_user.user_id:
-        return error_response('forbidden', 'You can only comment on complaints assigned to you', 403)
-    
+        return error_response('forbidden', 'You can only comment on complaints assigned to you', 403)    
     # Other students can comment only once.
     # Complaint owner and staff can comment multiple times.
     if (
@@ -904,4 +922,4 @@ def reopen_complaint(complaint_id):
         db.session.rollback()
         raise
 
-    return success_response(_serialize_complaint(complaint), 'Complaint reopened successfully', 200)
+    return success_response(_serialize_complaint(complaint), 'Complaint reopened successfully', 200)

@@ -745,3 +745,202 @@ class AuthService:
             'user': AuthService._serialize_user(current_user),
             'image_url': new_image_url,
         }
+
+    @staticmethod
+    def _create_firebase_user(email: str, password: str, display_name: str) -> str:
+        """Create a user record in Firebase Auth via Admin SDK."""
+        AuthService._ensure_firebase_app()
+        try:
+            user_record = firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=display_name,
+            )
+            return user_record.uid
+        except firebase_auth.EmailAlreadyExistsError as exc:
+            raise ConflictError('A user with this email already exists in Firebase.') from exc
+        except Exception as exc:
+            raise AuthServiceError(f'Failed to create user in Firebase: {exc}') from exc
+
+    @staticmethod
+    def _delete_firebase_user(firebase_uid: str) -> None:
+        """Delete a user record in Firebase Auth via Admin SDK (cleanup helper)."""
+        try:
+            AuthService._ensure_firebase_app()
+            firebase_auth.delete_user(firebase_uid)
+        except Exception as exc:
+            current_app.logger.warning(
+                f"Failed to delete Firebase user {firebase_uid} during cleanup: {exc}"
+            )
+
+    @staticmethod
+    def create_supervisor(
+        admin_user: User,
+        data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Create a new Supervisor user account under the Organization Admin's organization.
+
+        Enforces:
+        - Admin authentication, active status, and ORG_ADMIN or SUPER_ADMIN role.
+        - Organization isolation: uses admin_user.organization_id exclusively.
+        - Department belonging to the admin's organization.
+        - Duplicate checks for email and employee ID.
+        - Firebase user creation followed by MySQL user creation.
+        - Immediate Firebase user cleanup if MySQL persistence fails.
+        """
+        if admin_user is None:
+            raise AuthenticationError('User is not authenticated.')
+
+        if not admin_user.is_active:
+            raise AuthorizationError('Administrator account is inactive.')
+
+        admin_role = (admin_user.role or '').upper()
+        if admin_role not in ('ORG_ADMIN', 'SUPER_ADMIN'):
+            raise AuthorizationError('Only organization administrators can create supervisor accounts.')
+
+        organization_id = admin_user.organization_id
+        if not organization_id:
+            raise ValidationError('Administrator must belong to an organization.')
+
+        organization = Organization.query.filter_by(organization_id=organization_id).first()
+        if organization is None:
+            raise NotFoundError('Organization not found.')
+        if not organization.is_active:
+            raise ValidationError('Organization is inactive.')
+
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a valid JSON object.')
+
+        # Role escalation guard
+        requested_role = data.get('role')
+        if requested_role is not None:
+            normalized_role = str(requested_role).strip().upper()
+            if normalized_role != 'SUPERVISOR':
+                raise ValidationError('Supervisor accounts must have role SUPERVISOR.')
+
+        # Validate full_name
+        raw_name = data.get('full_name')
+        if not raw_name or not isinstance(raw_name, str) or not raw_name.strip():
+            raise ValidationError('full_name is required.')
+        full_name = raw_name.strip()
+        if len(full_name) > 100:
+            raise ValidationError('full_name must be 100 characters or fewer.')
+
+        # Validate email
+        raw_email = data.get('email')
+        if not raw_email or not isinstance(raw_email, str) or not raw_email.strip():
+            raise ValidationError('email is required.')
+        email = raw_email.strip().lower()
+        if len(email) > 100:
+            raise ValidationError('email must be 100 characters or fewer.')
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            raise ValidationError('Invalid email format.')
+
+        if organization.email_domain:
+            email_domain = email.split('@')[-1].lower()
+            if email_domain != organization.email_domain.lower():
+                raise ValidationError(
+                    f"Please register using your {organization.email_domain} email address."
+                )
+
+        # Validate password
+        raw_password = data.get('password')
+        if not raw_password or not isinstance(raw_password, str):
+            raise ValidationError('password is required.')
+        if len(raw_password) < 6:
+            raise ValidationError('Password must be at least 6 characters long.')
+
+        # Validate USN or employee ID
+        raw_emp_id = data.get('usn_or_employee_id') or data.get('employee_id')
+        if not raw_emp_id or not str(raw_emp_id).strip():
+            raise ValidationError('usn_or_employee_id is required.')
+        employee_id = str(raw_emp_id).strip()
+        if len(employee_id) > 30:
+            raise ValidationError('usn_or_employee_id must be 30 characters or fewer.')
+
+        # Validate department
+        raw_dept_id = data.get('department_id')
+        if raw_dept_id in (None, ''):
+            raise ValidationError('department_id is required.')
+        try:
+            department_id = int(raw_dept_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError('department_id must be an integer.') from exc
+
+        department = Department.query.filter_by(
+            department_id=department_id,
+            organization_id=organization_id,
+        ).first()
+        if department is None:
+            raise ValidationError('Department not found in your organization.')
+
+        # Validate optional phone
+        raw_phone = data.get('phone')
+        phone = None
+        if raw_phone is not None:
+            phone_str = str(raw_phone).strip()
+            if phone_str:
+                if len(phone_str) > 15:
+                    raise ValidationError('phone must be 15 characters or fewer.')
+                phone = phone_str
+
+        # Check duplicates in MySQL
+        existing_email = User.query.filter(
+            db.func.lower(User.email) == email,
+        ).first()
+        if existing_email is not None:
+            raise ConflictError('A user with this email already exists.')
+
+        existing_emp = User.query.filter(
+            User.organization_id == organization_id,
+            db.func.lower(User.usn_or_employee_id) == employee_id.lower(),
+        ).first()
+        if existing_emp is not None:
+            raise ConflictError('A user with this employee ID already exists in your organization.')
+
+        # Create user in Firebase
+        firebase_uid = AuthService._create_firebase_user(
+            email=email,
+            password=raw_password,
+            display_name=full_name,
+        )
+
+        # Create user in MySQL
+        new_user = User(
+            organization_id=organization_id,
+            department_id=department.department_id,
+            academic_department_id=None,
+            full_name=full_name,
+            usn_or_employee_id=employee_id,
+            email=email,
+            firebase_uid=firebase_uid,
+            phone=phone,
+            role='SUPERVISOR',
+            is_active=True,
+        )
+        db.session.add(new_user)
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            AuthService._delete_firebase_user(firebase_uid)
+            raise AuthServiceError(
+                'Unable to persist supervisor user record.',
+                status_code=500,
+                error_code='server_error',
+            ) from exc
+
+        return {
+            'user': AuthService._serialize_user(new_user),
+            'supervisor': {
+                'user_id': new_user.user_id,
+                'full_name': new_user.full_name,
+                'email': new_user.email,
+                'department_id': new_user.department_id,
+                'department_name': department.department_name,
+                'phone': new_user.phone,
+                'usn_or_employee_id': new_user.usn_or_employee_id,
+                'is_active': bool(new_user.is_active),
+            },
+        }

@@ -548,6 +548,13 @@ class _QuickActionsSection extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: AppDimensions.spacingSmall),
+        _QuickActionCard(
+          icon: Icons.badge_outlined,
+          title: 'Supervisor Management',
+          subtitle: 'Create & manage department staff',
+          onTap: () => context.push(AppRoutes.adminSupervisors),
+        ),
       ],
     );
   }

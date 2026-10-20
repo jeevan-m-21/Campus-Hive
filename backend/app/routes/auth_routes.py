@@ -2,7 +2,7 @@
 
 from flask import Blueprint, g, request
 
-from app.middleware.firebase_auth import firebase_login_required
+from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.services.auth_service import (
     AuthService,
     AuthServiceError,
@@ -155,3 +155,17 @@ def upload_profile_image():
         return _handle_auth_error(error)
 
     return success_response(result, 'Profile picture updated successfully.', 200)
+
+
+@auth_bp.route('/supervisors', methods=['POST'])
+@firebase_login_required
+@role_required('ORG_ADMIN', 'SUPER_ADMIN')
+def create_supervisor():
+    """Create a new Supervisor user account."""
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = AuthService.create_supervisor(g.current_user, payload)
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Supervisor created successfully.', 201)
