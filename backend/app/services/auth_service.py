@@ -491,3 +491,100 @@ class AuthService:
         return {
             'user': AuthService._serialize_user(user),
         }
+
+    @staticmethod
+    def _is_safe_image_url(url: Optional[str]) -> bool:
+        if not url or not isinstance(url, str):
+            return False
+        trimmed = url.strip()
+        if not trimmed:
+            return False
+        if '..' in trimmed:
+            return False
+        if any(c in trimmed for c in ('\r', '\n', '\t', ' ')):
+            return False
+        lower_url = trimmed.lower()
+        if lower_url.startswith(('javascript:', 'data:', 'vbscript:', 'file:', '//')):
+            return False
+        return True
+
+    @staticmethod
+    def update_profile(
+        current_user: User,
+        data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Update authenticated user's profile with approved editable fields.
+
+        Permitted fields: 'full_name', 'phone', 'profile_image'.
+        All other fields are rejected with ValidationError.
+        """
+        if current_user is None:
+            raise AuthenticationError('User is not authenticated.')
+
+        if not current_user.is_active:
+            raise AuthorizationError('User account is inactive.')
+
+        if not isinstance(data, dict):
+            raise ValidationError('Request body must be a valid JSON object.')
+
+        if not data:
+            raise ValidationError('At least one profile field must be provided for update.')
+
+        allowed_fields = {'full_name', 'phone', 'profile_image'}
+        unsupported = set(data.keys()) - allowed_fields
+        if unsupported:
+            disallowed = sorted(list(unsupported))
+            raise ValidationError(f"Field '{disallowed[0]}' cannot be modified.")
+
+        if 'full_name' in data:
+            full_name = data['full_name']
+            if not isinstance(full_name, str):
+                raise ValidationError('full_name must be a string.')
+            trimmed_name = full_name.strip()
+            if not trimmed_name:
+                raise ValidationError('full_name cannot be empty.')
+            if len(trimmed_name) > 100:
+                raise ValidationError('full_name must be 100 characters or fewer.')
+            current_user.full_name = trimmed_name
+
+        if 'phone' in data:
+            phone = data['phone']
+            if phone is None:
+                current_user.phone = None
+            elif isinstance(phone, str):
+                trimmed_phone = phone.strip()
+                if not trimmed_phone:
+                    current_user.phone = None
+                elif len(trimmed_phone) > 15:
+                    raise ValidationError('phone must be 15 characters or fewer.')
+                else:
+                    current_user.phone = trimmed_phone
+            else:
+                raise ValidationError('phone must be a string or null.')
+
+        if 'profile_image' in data:
+            profile_image = data['profile_image']
+            if profile_image is None:
+                current_user.profile_image = None
+            elif isinstance(profile_image, str):
+                trimmed_image = profile_image.strip()
+                if not trimmed_image:
+                    current_user.profile_image = None
+                elif len(trimmed_image) > 255:
+                    raise ValidationError('profile_image must be 255 characters or fewer.')
+                elif not AuthService._is_safe_image_url(trimmed_image):
+                    raise ValidationError('Invalid profile_image URL.')
+                else:
+                    current_user.profile_image = trimmed_image
+            else:
+                raise ValidationError('profile_image must be a string or null.')
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            raise AuthServiceError('Unable to update profile.') from exc
+
+        return {
+            'user': AuthService._serialize_user(current_user),
+        }

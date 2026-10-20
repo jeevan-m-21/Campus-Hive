@@ -118,3 +118,21 @@ def update_fcm_token():
         return _handle_auth_error(error)
 
     return success_response(result, 'FCM token updated successfully.', 200)
+
+
+@auth_bp.route('/profile', methods=['PATCH', 'PUT'])
+@auth_bp.route('/me', methods=['PATCH'])
+@firebase_login_required
+def update_profile():
+    """Update the current user's profile."""
+
+    payload = request.get_json(silent=True)
+    if payload is None or not isinstance(payload, dict):
+        return error_response('invalid_payload', 'Request body must be a valid JSON object.', 400)
+
+    try:
+        result = AuthService.update_profile(g.current_user, payload)
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Profile updated successfully.', 200)

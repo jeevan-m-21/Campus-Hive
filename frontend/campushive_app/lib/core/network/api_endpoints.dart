@@ -2,6 +2,7 @@ abstract final class ApiEndpoints {
   static const login = '/auth/login';
   static const register = '/auth/register';
   static const me = '/auth/me';
+  static const updateProfile = '/auth/profile';
   static const publicOrganizations = '/organizations/public';
   static String academicDepartments(int organizationId) =>
       '/organizations/$organizationId/academic-departments';
