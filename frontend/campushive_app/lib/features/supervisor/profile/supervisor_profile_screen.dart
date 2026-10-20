@@ -10,12 +10,12 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/editable_profile_avatar.dart';
 import '../../../models/department.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/supervisor_complaint_provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/complaint_service.dart';
-import '../../student/home/widgets/feed_card_shell.dart';
 import '../widgets/supervisor_app_bar.dart';
 
 class SupervisorProfileScreen extends StatefulWidget {
@@ -84,21 +84,12 @@ class _ProfileHeader extends StatelessWidget {
     return AppCard(
       child: Row(
         children: [
-          imageUrl.isEmpty
-              ? const CircleAvatar(
-                  radius: 38,
-                  backgroundColor: AppColors.divider,
-                  child: Icon(
-                    Icons.badge_outlined,
-                    size: 34,
-                    color: AppColors.primary,
-                  ),
-                )
-              : CircleAvatar(
-                  radius: 38,
-                  backgroundColor: AppColors.divider,
-                  backgroundImage: NetworkImage(resolveImageUrl(imageUrl)),
-                ),
+          EditableProfileAvatar(
+            imageUrl: imageUrl,
+            radius: 38,
+            fallbackIcon: Icons.badge_outlined,
+            fallbackIconColor: AppColors.primary,
+          ),
           const SizedBox(width: AppDimensions.spacingMedium),
           Expanded(
             child: Column(

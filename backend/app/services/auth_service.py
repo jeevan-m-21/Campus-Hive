@@ -7,6 +7,7 @@ verifies Firebase ID tokens and syncs the authenticated user record to MySQL.
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -14,6 +15,8 @@ import firebase_admin
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials
 from flask import current_app
+from PIL import Image
+from werkzeug.utils import secure_filename
 
 from app.database import db
 from app.models import User, Organization, Department, AcademicDepartment
@@ -587,4 +590,158 @@ class AuthService:
 
         return {
             'user': AuthService._serialize_user(current_user),
+        }
+
+    @staticmethod
+    def _cleanup_old_profile_image(old_image_url: Optional[str], current_user_id: int) -> None:
+        """Remove previous profile image file if internal, managed, and unreferenced."""
+        if not old_image_url or not isinstance(old_image_url, str):
+            return
+
+        trimmed = old_image_url.strip()
+        prefix = '/uploads/profile/'
+        alt_prefix = 'uploads/profile/'
+
+        if trimmed.startswith(prefix):
+            filename = trimmed[len(prefix):]
+        elif trimmed.startswith(alt_prefix):
+            filename = trimmed[len(alt_prefix):]
+        else:
+            # External or from another module (complaints, lost_found, etc.) -> preserve
+            return
+
+        # Path traversal guard for extracted filename
+        if not filename or '/' in filename or '\\' in filename or '..' in filename:
+            current_app.logger.warning(f"Unsafe filename in old profile image path: {filename}")
+            return
+
+        # Check if another user references this image
+        other = User.query.filter(
+            User.user_id != current_user_id,
+            User.profile_image == trimmed,
+        ).first()
+        if other is not None:
+            current_app.logger.info(
+                f"Skipping old profile image deletion; shared with user {other.user_id}"
+            )
+            return
+
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', './uploads')
+        profile_dir = os.path.abspath(os.path.join(upload_folder, 'profile'))
+        old_filepath = os.path.abspath(os.path.join(profile_dir, filename))
+
+        if os.path.commonpath([old_filepath, profile_dir]) != profile_dir:
+            current_app.logger.warning(f"Path traversal detected for old profile image: {old_filepath}")
+            return
+
+        try:
+            if os.path.exists(old_filepath) and os.path.isfile(old_filepath):
+                os.remove(old_filepath)
+                current_app.logger.info(f"Cleaned up old profile image: {old_filepath}")
+        except Exception as exc:
+            current_app.logger.warning(f"Could not remove old profile image {old_filepath}: {exc}")
+
+    @staticmethod
+    def upload_profile_image(
+        current_user: User,
+        file: Any,
+    ) -> Dict[str, Any]:
+        """Upload and associate a new profile picture for the authenticated user."""
+        if current_user is None:
+            raise AuthenticationError('User is not authenticated.')
+
+        if not current_user.is_active:
+            raise AuthorizationError('User account is inactive.')
+
+        if not file or not getattr(file, 'filename', None):
+            raise ValidationError('No image selected.')
+
+        filename = secure_filename(file.filename)
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'webp'}
+        if ext not in allowed_extensions:
+            allowed_list = sorted(list(allowed_extensions))
+            raise ValidationError(
+                f'File type not allowed. Allowed extensions: {", ".join(allowed_list)}'
+            )
+
+        client_mime = getattr(file, 'mimetype', None)
+        allowed_mimetypes = {'image/jpeg', 'image/png', 'image/webp'}
+        if client_mime and client_mime != 'application/octet-stream':
+            if client_mime.lower() not in allowed_mimetypes:
+                raise ValidationError('Invalid MIME type for image.')
+
+        # 5 MB maximum size check
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+
+        if file_size <= 0:
+            raise ValidationError('File cannot be empty.')
+        if file_size > 5 * 1024 * 1024:
+            raise ValidationError('File size exceeds 5MB limit.')
+
+        # Pillow image content verification
+        try:
+            img = Image.open(file.stream)
+            img.verify()
+            img_format = (img.format or '').upper()
+        except Exception as exc:
+            raise ValidationError('Invalid or corrupted image file.') from exc
+        finally:
+            file.seek(0)
+
+        allowed_formats = {
+            'JPEG': 'jpg',
+            'PNG': 'png',
+            'WEBP': 'webp',
+        }
+        if img_format not in allowed_formats:
+            raise ValidationError(
+                'Image format not supported. Supported formats: JPEG, PNG, WEBP'
+            )
+
+        canonical_ext = allowed_formats[img_format]
+        upload_folder = os.path.abspath(current_app.config.get('UPLOAD_FOLDER', './uploads'))
+        profile_dir = os.path.abspath(os.path.join(upload_folder, 'profile'))
+        os.makedirs(profile_dir, exist_ok=True)
+
+        new_filename = f"{uuid.uuid4().hex}.{canonical_ext}"
+        filepath = os.path.abspath(os.path.join(profile_dir, new_filename))
+
+        if os.path.commonpath([filepath, profile_dir]) != profile_dir:
+            raise ValidationError('Invalid filename or path.')
+
+        try:
+            file.save(filepath)
+        except Exception as exc:
+            current_app.logger.exception('Failed to save profile image')
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+            raise AuthServiceError('Failed to save image file.', status_code=500, error_code='server_error') from exc
+
+        old_profile_image = current_user.profile_image
+        new_image_url = f"/uploads/profile/{new_filename}"
+        current_user.profile_image = new_image_url
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+            raise AuthServiceError('Unable to update profile image in database.', status_code=500, error_code='server_error') from exc
+
+        # Clean up old profile image if safe
+        AuthService._cleanup_old_profile_image(old_profile_image, current_user.user_id)
+
+        return {
+            'user': AuthService._serialize_user(current_user),
+            'image_url': new_image_url,
         }

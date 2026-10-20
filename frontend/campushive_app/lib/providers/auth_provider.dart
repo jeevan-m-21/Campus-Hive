@@ -136,6 +136,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<AuthSession> uploadProfileImage(String filePath) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final updatedSession = await _authService.uploadProfileImage(filePath);
+      _session = updatedSession;
+      return updatedSession;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> signOut() async {
     await _authService.signOut();

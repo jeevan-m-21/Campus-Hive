@@ -7,10 +7,10 @@ import '../../../app/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/utils/image_url_resolver.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/editable_profile_avatar.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/auth_service.dart';
 import '../widgets/student_app_bar.dart';
@@ -53,7 +53,6 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rawImageUrl = _value(user['profile_image']);
-    final imageUrl = resolveImageUrl(rawImageUrl);
     final fullName = _value(user['full_name']);
     final identifier = _value(user['usn_or_employee_id']);
     final email = _value(user['email']);
@@ -61,22 +60,12 @@ class _ProfileHeader extends StatelessWidget {
     return AppCard(
       child: Row(
         children: [
-          imageUrl.isEmpty
-              ? const CircleAvatar(
-                  radius: 38,
-                  backgroundColor: AppColors.divider,
-                  child: Icon(
-                    Icons.person_outline,
-                    size: 34,
-                    color: AppColors.textSecondary,
-                  ),
-                )
-              : CircleAvatar(
-                  radius: 38,
-                  backgroundColor: AppColors.divider,
-                  backgroundImage: NetworkImage(imageUrl),
-                  onBackgroundImageError: (exception, stackTrace) {},
-                ),
+          EditableProfileAvatar(
+            imageUrl: rawImageUrl,
+            radius: 38,
+            fallbackIcon: Icons.person_outline,
+            fallbackIconColor: AppColors.textSecondary,
+          ),
           const SizedBox(width: AppDimensions.spacingMedium),
           Expanded(
             child: Column(

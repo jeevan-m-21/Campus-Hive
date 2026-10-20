@@ -136,3 +136,22 @@ def update_profile():
         return _handle_auth_error(error)
 
     return success_response(result, 'Profile updated successfully.', 200)
+
+
+@auth_bp.route('/profile-image', methods=['POST'])
+@firebase_login_required
+def upload_profile_image():
+    """Upload and set profile picture for the authenticated user."""
+    if 'image' not in request.files and 'file' not in request.files:
+        return error_response('validation_error', 'No image file provided.', 400)
+
+    file = request.files.get('image') or request.files.get('file')
+    if not file or not file.filename:
+        return error_response('validation_error', 'No image selected.', 400)
+
+    try:
+        result = AuthService.upload_profile_image(g.current_user, file)
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Profile picture updated successfully.', 200)

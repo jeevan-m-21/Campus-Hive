@@ -294,6 +294,61 @@ class AuthService {
     }
   }
 
+  Future<AuthSession> uploadProfileImage(String filePath) async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) {
+      throw const AuthException(
+        'You must be logged in to update your profile picture.',
+      );
+    }
+    final idToken = await firebaseUser.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw const AuthException('Unable to obtain authentication token.');
+    }
+
+    try {
+      final response = await _apiClient.postMultipart(
+        ApiEndpoints.uploadProfileImage,
+        idToken: idToken,
+        filePath: filePath,
+        fileField: 'image',
+      );
+      final data = response['data'];
+      final user = data is Map<String, dynamic> ? data['user'] : null;
+      if (user is! Map<String, dynamic>) {
+        throw const AuthException(
+          'The server returned an invalid user response.',
+        );
+      }
+
+      final role = user['role'];
+      if (role is! String || role.isEmpty) {
+        throw const AuthException('The server returned an invalid user role.');
+      }
+
+      final stored = await _secureStorage.readSession();
+      final nowUtc = DateTime.now().toUtc();
+      await _secureStorage.writeSession(
+        idToken: idToken,
+        user: user,
+        sessionCreatedAt: stored?.sessionCreatedAt ?? nowUtc,
+        lastActiveAt: nowUtc,
+      );
+
+      return AuthSession(user: user, role: role);
+    } on ApiException catch (error) {
+      final msg = error.message.isNotEmpty && error.message != 'Request failed.'
+          ? error.message
+          : 'Unable to upload profile picture. Please try again.';
+      throw AuthException(msg);
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw const AuthNetworkException(
+        'Unable to upload profile picture. Please check your connection.',
+      );
+    }
+  }
+
   Future<AuthSession?> restoreSession() async {
     // 1. Read stored session metadata
     final stored = await _secureStorage.readSession();
