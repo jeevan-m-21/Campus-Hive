@@ -11,6 +11,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/editable_profile_avatar.dart';
+import '../../../core/widgets/logout_confirmation_dialog.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/auth_service.dart';
 import '../widgets/student_app_bar.dart';
@@ -240,10 +241,7 @@ class _ProfileActions extends StatelessWidget {
           icon: Icons.logout_outlined,
           variant: AppButtonVariant.outlined,
           expand: true,
-          onPressed: () async {
-            await context.read<AuthProvider>().signOut();
-            if (context.mounted) context.go(AppRoutes.login);
-          },
+          onPressed: () => LogoutConfirmationDialog.show(context),
         ),
       ],
     );

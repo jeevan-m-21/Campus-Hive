@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../core/widgets/logout_confirmation_dialog.dart';
 import '../../../providers/notification_provider.dart';
 
 class SupervisorAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -91,10 +91,7 @@ class SupervisorAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           tooltip: 'Sign out',
           icon: const Icon(Icons.logout_outlined),
-          onPressed: () async {
-            await context.read<AuthProvider>().signOut();
-            if (context.mounted) context.go(AppRoutes.login);
-          },
+          onPressed: () => LogoutConfirmationDialog.show(context),
         ),
       ],
     );

@@ -10,6 +10,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/logout_confirmation_dialog.dart';
 import '../../../models/feed_item.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/home_feed_provider.dart';
@@ -43,10 +44,7 @@ class _StudentDashboardView extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'Sign out',
-            onPressed: () async {
-              await context.read<AuthProvider>().signOut();
-              if (context.mounted) context.go(AppRoutes.login);
-            },
+            onPressed: () => LogoutConfirmationDialog.show(context),
             icon: const Icon(Icons.logout_outlined),
           ),
         ],
