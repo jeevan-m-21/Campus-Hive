@@ -1,4 +1,10 @@
 
+> [!NOTE]
+> **HISTORICAL PROTOTYPE INVENTORY (ARCHIVED)**
+> This document records an inspection of an early prototype frontend formerly located at `frontend/campushive_flutter`.
+> That prototype has since been superseded by the active Flutter application at `frontend/campushive_app`.
+> For current application documentation, refer to [frontend/campushive_app/README.md](README.md) and [AppRoutes](lib/app/routes.dart).
+
 > Read-only inventory of the existing teammate Flutter frontend at `D:/Major_Project/campus_hive/frontend/campushive_flutter`. This document describes observed UI and navigation only. It is not an implementation specification, and the teammate project's mock data is not authoritative backend contract data.
 
 ## Scope and Evidence

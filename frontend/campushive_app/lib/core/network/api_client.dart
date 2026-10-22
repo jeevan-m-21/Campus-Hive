@@ -10,14 +10,54 @@ class ApiClient {
 
   final http.Client _client;
 
+  /// Builds a fully-qualified [Uri] from [path] and optional [queryParameters].
+  ///
+  /// Guarantees:
+  /// - Strips any trailing slashes from the configured [AppConstants.apiBaseUrl].
+  /// - Ensures the `/api/v1` segment is present without creating duplicates.
+  /// - Ensures a leading slash before the endpoint path.
+  static Uri buildUri(String path, [Map<String, String>? queryParameters]) {
+    final rawBase = AppConstants.apiBaseUrl.trim();
+    var sanitizedBase = rawBase.isEmpty
+        ? 'http://192.168.31.90:5000/api/v1'
+        : rawBase;
+
+    // Remove any trailing slashes from the base URL
+    while (sanitizedBase.endsWith('/')) {
+      sanitizedBase = sanitizedBase.substring(0, sanitizedBase.length - 1);
+    }
+
+    // Ensure the base URL includes /api/v1 if not already present
+    if (!sanitizedBase.endsWith('/api/v1')) {
+      sanitizedBase = '$sanitizedBase/api/v1';
+    }
+
+    // Process the path: prevent duplicate /api/v1 segments
+    var sanitizedPath = path.trim();
+    if (sanitizedPath.startsWith('/api/v1/')) {
+      sanitizedPath = sanitizedPath.substring('/api/v1'.length);
+    } else if (sanitizedPath == '/api/v1') {
+      sanitizedPath = '';
+    }
+
+    // Ensure path has exactly one leading slash if non-empty
+    if (sanitizedPath.isNotEmpty && !sanitizedPath.startsWith('/')) {
+      sanitizedPath = '/$sanitizedPath';
+    }
+
+    final parsedUri = Uri.parse('$sanitizedBase$sanitizedPath');
+    if (queryParameters != null && queryParameters.isNotEmpty) {
+      return parsedUri.replace(queryParameters: queryParameters);
+    }
+    return parsedUri;
+  }
+
   Future<Map<String, dynamic>> get(
     String path, {
     String? idToken,
     Map<String, String>? queryParameters,
   }) async {
-    final uri = Uri.parse(
-      '${AppConstants.apiBaseUrl}$path',
-    ).replace(queryParameters: queryParameters);
+    final uri = buildUri(path, queryParameters);
     final headers = <String, String>{};
     if (idToken != null && idToken.isNotEmpty) {
       headers['Authorization'] = 'Bearer $idToken';
@@ -42,7 +82,7 @@ class ApiClient {
       headers['Authorization'] = 'Bearer $idToken';
     }
     final response = await _client.post(
-      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+      buildUri(path),
       headers: headers,
       body: jsonEncode(body),
     );
@@ -56,7 +96,7 @@ class ApiClient {
     required Map<String, dynamic> body,
   }) async {
     final response = await _client.patch(
-      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+      buildUri(path),
       headers: {
         'Authorization': 'Bearer $idToken',
         'Content-Type': 'application/json',
@@ -73,7 +113,7 @@ class ApiClient {
     Map<String, dynamic>? body,
   }) async {
     final response = await _client.delete(
-      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+      buildUri(path),
       headers: {
         'Authorization': 'Bearer $idToken',
         if (body != null) 'Content-Type': 'application/json',
@@ -92,7 +132,7 @@ class ApiClient {
   }) async {
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+      buildUri(path),
     );
     request.headers['Authorization'] = 'Bearer $idToken';
     request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
