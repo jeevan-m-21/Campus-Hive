@@ -60,12 +60,42 @@ def create_app(config_name=None):
     # Register SocketIO events
     register_socketio_events(app, socketio)
     
+    # Register CLI commands
+    register_cli_commands(app)
+    
     # Initialize schedulers
     #init_schedulers(app)
     
     app.logger.info('Flask application created and configured successfully')
     
     return app, socketio
+
+
+def make_app():
+    """Application factory for Flask CLI that returns only the Flask instance."""
+    flask_app, _ = create_app()
+    return flask_app
+
+
+def register_cli_commands(app):
+    """Register custom CLI commands."""
+
+    @app.cli.command('test-smtp')
+    def test_smtp_cli():
+        """Verify SMTP connection, STARTTLS, and credentials safely without sending an email."""
+        from app.services.email_service import EmailService
+
+        result = EmailService.verify_smtp_connection(app)
+        if result.get('success'):
+            print(f"[SUCCESS] {result.get('message')}")
+            print(f"Details: host={result.get('server')}:{result.get('port')}, tls={result.get('tls')}, credentials_configured={result.get('credentials_configured')}")
+        else:
+            print(f"[FAILED] Failed during stage: '{result.get('stage')}'")
+            print(f"Host: {result.get('server')}:{result.get('port')}, TLS: {result.get('tls')}, Credentials configured: {result.get('credentials_configured')}")
+            print(f"Error class: {result.get('error_class')}")
+            if result.get('smtp_code'):
+                print(f"SMTP code: {result.get('smtp_code')}")
+            print(f"Error message: {result.get('error')}")
 
 
 def register_blueprints(app):

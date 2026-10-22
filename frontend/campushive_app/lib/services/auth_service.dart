@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
 import '../core/network/api_exception.dart';
 import '../core/storage/secure_storage.dart';
 import '../models/academic_department.dart';
+import '../models/email_verification.dart';
 import '../models/organization.dart';
 
 class AuthSession {
@@ -72,6 +74,64 @@ class AuthService {
     }
   }
 
+  Future<OtpSendResult> sendRegistrationOtp({
+    required String email,
+    required int organizationId,
+    required int academicDepartmentId,
+    required String identifier,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.sendRegistrationOtp,
+        body: {
+          'email': email.trim().toLowerCase(),
+          'organization_id': organizationId,
+          'academic_department_id': academicDepartmentId,
+          'usn_or_employee_id': identifier.trim(),
+        },
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AuthException('Invalid response from server.');
+      }
+      return OtpSendResult.fromJson(data);
+    } on ApiException catch (error) {
+      throw AuthException(_backendMessage(error));
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw const AuthNetworkException(
+        'Unable to send verification code. Please check your connection.',
+      );
+    }
+  }
+
+  Future<OtpVerificationResult> verifyRegistrationOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.verifyRegistrationOtp,
+        body: {
+          'email': email.trim().toLowerCase(),
+          'otp': otp.trim(),
+        },
+      );
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AuthException('Invalid response from server.');
+      }
+      return OtpVerificationResult.fromJson(data);
+    } on ApiException catch (error) {
+      throw AuthException(_backendMessage(error));
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw const AuthNetworkException(
+        'Unable to verify code. Please check your connection.',
+      );
+    }
+  }
+
   Future<AuthSession> register({
     required String email,
     required String password,
@@ -80,6 +140,8 @@ class AuthService {
     required String phone,
     required int organizationId,
     required int academicDepartmentId,
+    String? verificationToken,
+    String? fcmToken,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -97,17 +159,25 @@ class AuthService {
     }
 
     try {
+      final body = <String, dynamic>{
+        'organization_id': organizationId,
+        'academic_department_id': academicDepartmentId,
+        'full_name': fullName,
+        'usn_or_employee_id': identifier,
+        'phone': phone,
+        'role': 'STUDENT',
+      };
+      if (verificationToken != null && verificationToken.trim().isNotEmpty) {
+        body['verification_token'] = verificationToken.trim();
+      }
+      if (fcmToken != null && fcmToken.trim().isNotEmpty) {
+        body['fcm_token'] = fcmToken.trim();
+      }
+
       final response = await _apiClient.post(
         ApiEndpoints.register,
         idToken: idToken,
-        body: {
-          'organization_id': organizationId,
-          'academic_department_id': academicDepartmentId,
-          'full_name': fullName,
-          'usn_or_employee_id': identifier,
-          'phone': phone,
-          'role': 'STUDENT',
-        },
+        body: body,
       );
       final data = response['data'];
       final user = data is Map<String, dynamic> ? data['user'] : null;
@@ -156,6 +226,7 @@ class AuthService {
     required String email,
     required String password,
     required String identifier,
+    String? fcmToken,
   }) async {
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
@@ -173,10 +244,15 @@ class AuthService {
     }
 
     try {
+      final body = <String, dynamic>{'usn_or_employee_id': identifier};
+      if (fcmToken != null && fcmToken.trim().isNotEmpty) {
+        body['fcm_token'] = fcmToken.trim();
+      }
+
       final response = await _apiClient.post(
         ApiEndpoints.login,
         idToken: idToken,
-        body: {'usn_or_employee_id': identifier},
+        body: body,
       );
       final data = response['data'];
       final user = data is Map<String, dynamic> ? data['user'] : null;
@@ -434,19 +510,35 @@ class AuthService {
   }
 
   Future<bool> updateFcmToken(String fcmToken) async {
+    final cleanToken = fcmToken.trim();
+    if (cleanToken.isEmpty) {
+      debugPrint('[AuthService] updateFcmToken called with empty token.');
+      return false;
+    }
     final firebaseUser = _auth.currentUser;
-    if (firebaseUser == null) return false;
+    if (firebaseUser == null) {
+      debugPrint('[AuthService] updateFcmToken skipped: no current Firebase user.');
+      return false;
+    }
     final idToken = await firebaseUser.getIdToken();
-    if (idToken == null || idToken.isEmpty) return false;
+    if (idToken == null || idToken.isEmpty) {
+      debugPrint('[AuthService] updateFcmToken skipped: unable to obtain ID token.');
+      return false;
+    }
 
     try {
       await _apiClient.post(
         ApiEndpoints.updateFcmToken,
         idToken: idToken,
-        body: {'fcm_token': fcmToken},
+        body: {'fcm_token': cleanToken},
       );
+      final masked = cleanToken.length > 6
+          ? '${cleanToken.substring(0, 6)}... (len: ${cleanToken.length})'
+          : '***';
+      debugPrint('[AuthService] FCM token successfully updated on backend: $masked');
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AuthService] Failed to update FCM token on backend: $e');
       return false;
     }
   }
@@ -465,6 +557,36 @@ class AuthService {
     if (error.code == 'invalid_identifier') {
       return 'Invalid USN or employee ID.';
     }
+    if (error.code == 'invalid_otp') {
+      return error.message.isNotEmpty
+          ? error.message
+          : 'Invalid verification code.';
+    }
+    if (error.code == 'otp_expired') {
+      return 'Verification code has expired. Please request a new code.';
+    }
+    if (error.code == 'attempts_exceeded') {
+      return 'Maximum verification attempts exceeded. Please request a new code.';
+    }
+    if (error.code == 'cooldown_active' ||
+        error.code == 'rate_limit_exceeded') {
+      return error.message.isNotEmpty
+          ? error.message
+          : 'Too many requests. Please wait before trying again.';
+    }
+    if (error.code == 'email_delivery_failed') {
+      return 'Unable to send verification email. Please check your email address or try again later.';
+    }
+    if (error.code == 'missing_verification_token' ||
+        error.code == 'invalid_verification_token') {
+      return 'Email verification token is invalid or expired. Please verify your email again.';
+    }
+    if (error.code == 'verification_token_expired') {
+      return 'Email verification has expired. Please verify your email again.';
+    }
+    if (error.code == 'email_mismatch' || error.code == 'data_tampered') {
+      return 'Registration details do not match verified email. Please verify again.';
+    }
     if (error.statusCode == 403) {
       return error.message.isNotEmpty
           ? error.message
@@ -481,7 +603,7 @@ class AuthService {
     if (error.message.isNotEmpty && error.message != 'Request failed.') {
       return error.message;
     }
-    return 'Unable to complete sign-in.';
+    return 'Unable to complete request.';
   }
 }
 

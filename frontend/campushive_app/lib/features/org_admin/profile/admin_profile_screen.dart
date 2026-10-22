@@ -10,6 +10,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/logout_confirmation_dialog.dart';
 import '../../../providers/admin_complaint_provider.dart';
 import '../../../providers/announcement_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -25,11 +26,13 @@ class AdminProfileScreen extends StatelessWidget {
     final user = session?.user ?? const <String, dynamic>{};
 
     return Scaffold(
-      appBar: const AdminAppBar(title: 'Admin Profile'),
+      appBar: const AdminAppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),
           children: [
+            const Text('Admin Profile', style: AppTextStyles.headingLarge),
+            const SizedBox(height: AppDimensions.spacingMedium),
             _ProfileHeader(user: user),
             const SizedBox(height: AppDimensions.spacingLarge),
             _ProfileDetails(user: user),
@@ -439,41 +442,10 @@ class _ProfileActions extends StatelessWidget {
           icon: Icons.logout_outlined,
           variant: AppButtonVariant.outlined,
           expand: true,
-          onPressed: () => _confirmSignOut(context),
+          onPressed: () => LogoutConfirmationDialog.show(context),
         ),
       ],
     );
-  }
-
-  Future<void> _confirmSignOut(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out'),
-        content: const Text(
-          'Are you sure you want to end your administrative session?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      await context.read<AuthProvider>().signOut();
-      if (context.mounted) context.go(AppRoutes.login);
-    }
   }
 
   Future<void> _showChangePassword(BuildContext context) async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_dimensions.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../providers/announcement_provider.dart';
@@ -25,11 +26,27 @@ class _SupervisorAnnouncementsView extends StatelessWidget {
     final provider = context.watch<AnnouncementProvider>();
 
     return Scaffold(
-      appBar: const SupervisorAppBar(title: 'Announcements'),
+      appBar: const SupervisorAppBar(),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => provider.load(refresh: true),
-          child: _buildBody(context, provider),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingMedium,
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingSmall,
+              ),
+              child: Text('Announcements', style: AppTextStyles.headingLarge),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => provider.load(refresh: true),
+                child: _buildBody(context, provider),
+              ),
+            ),
+          ],
         ),
       ),
     );

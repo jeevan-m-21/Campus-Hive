@@ -8,10 +8,10 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent
+
+# Load environment variables from .env file relative to backend root
+load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 
 class Config:
@@ -57,12 +57,24 @@ class Config:
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'}
 
     # Email Configuration
-    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
-    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', True)
-    MAIL_USERNAME = os.getenv('MAIL_USERNAME', '')
-    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', '')
-    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@campushive.com')
+    MAIL_SERVER = os.getenv('MAIL_SERVER') or os.getenv('SMTP_SERVER') or 'smtp.gmail.com'
+    MAIL_PORT = int(os.getenv('MAIL_PORT') or os.getenv('SMTP_PORT') or 587)
+    _mail_use_tls_raw = os.getenv('MAIL_USE_TLS') if os.getenv('MAIL_USE_TLS') is not None else os.getenv('SMTP_USE_TLS')
+    if _mail_use_tls_raw is not None:
+        if isinstance(_mail_use_tls_raw, bool):
+            MAIL_USE_TLS = _mail_use_tls_raw
+        else:
+            MAIL_USE_TLS = str(_mail_use_tls_raw).strip().lower() in ('true', '1', 'yes')
+    else:
+        MAIL_USE_TLS = True
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME') or os.getenv('SMTP_USERNAME') or ''
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD') or os.getenv('SMTP_PASSWORD') or ''
+    MAIL_DEFAULT_SENDER = (
+        os.getenv('MAIL_DEFAULT_SENDER')
+        or os.getenv('MAIL_USERNAME')
+        or os.getenv('SMTP_USERNAME')
+        or 'campushive.team@gmail.com'
+    )
 
     # API Configuration
     API_TITLE = 'CampusHive API'

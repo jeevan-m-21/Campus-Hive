@@ -5,11 +5,14 @@ Production-ready Flask API for campus issue management platform
 
 import os
 import sys
+from pathlib import Path
 from dotenv import load_dotenv
 from app import create_app
 
-# Load environment variables
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+
+# Load environment variables from backend directory
+load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 # Create Flask app and SocketIO instance
 app, socketio = create_app(os.getenv('FLASK_ENV', 'development'))
@@ -51,6 +54,24 @@ def make_shell_context():
         'Notification': Notification,
         'Announcement': Announcement,
     }
+
+
+@app.cli.command('test-smtp')
+def test_smtp_cli():
+    """Verify SMTP connection, STARTTLS, and credentials safely without sending an email."""
+    from app.services.email_service import EmailService
+
+    result = EmailService.verify_smtp_connection(app)
+    if result.get('success'):
+        print(f"[SUCCESS] {result.get('message')}")
+        print(f"Details: host={result.get('server')}:{result.get('port')}, tls={result.get('tls')}, credentials_configured={result.get('credentials_configured')}")
+    else:
+        print(f"[FAILED] Failed during stage: '{result.get('stage')}'")
+        print(f"Host: {result.get('server')}:{result.get('port')}, TLS: {result.get('tls')}, Credentials configured: {result.get('credentials_configured')}")
+        print(f"Error class: {result.get('error_class')}")
+        if result.get('smtp_code'):
+            print(f"SMTP code: {result.get('smtp_code')}")
+        print(f"Error message: {result.get('error')}")
 
 
 if __name__ == '__main__':

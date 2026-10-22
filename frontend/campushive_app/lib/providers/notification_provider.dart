@@ -11,8 +11,10 @@ class NotificationProvider extends ChangeNotifier {
 
   List<AppNotification> _notifications = [];
   int _unreadCount = 0;
+  int _allTotal = 0;
   bool _isLoading = false;
   bool _isLoadingPage = false;
+  bool _isMarkingAllAsRead = false;
   String? _errorMessage;
   bool _unreadOnly = false;
   int _page = 1;
@@ -22,8 +24,11 @@ class NotificationProvider extends ChangeNotifier {
 
   List<AppNotification> get notifications => _notifications;
   int get unreadCount => _unreadCount;
+  int get allTotal =>
+      _allTotal > 0 ? _allTotal : (_total > 0 ? _total : _notifications.length);
   bool get isLoading => _isLoading;
   bool get isLoadingPage => _isLoadingPage;
+  bool get isMarkingAllAsRead => _isMarkingAllAsRead;
   String? get errorMessage => _errorMessage;
   bool get isEmpty => _notifications.isEmpty;
   bool get unreadOnly => _unreadOnly;
@@ -53,6 +58,11 @@ class NotificationProvider extends ChangeNotifier {
       _page = pageResult.page;
       _pages = pageResult.pages;
       _total = pageResult.total;
+      if (!_unreadOnly) {
+        _allTotal = pageResult.total;
+      } else if (_allTotal == 0) {
+        _allTotal = pageResult.total;
+      }
       _hasNext = pageResult.hasNext;
       _unreadCount = results[1] as int;
     } on NotificationException catch (e) {
@@ -86,6 +96,9 @@ class NotificationProvider extends ChangeNotifier {
       _page = pageResult.page;
       _pages = pageResult.pages;
       _total = pageResult.total;
+      if (!_unreadOnly) {
+        _allTotal = pageResult.total;
+      }
       _hasNext = pageResult.hasNext;
     } on NotificationException catch (e) {
       _errorMessage = e.message;
@@ -129,22 +142,26 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   Future<int> markAllAsRead() async {
-    final previousList = List<AppNotification>.from(_notifications);
-    final previousUnread = _unreadCount;
-
-    _notifications = [for (final n in _notifications) n.copyWith(isRead: true)];
-    _unreadCount = 0;
+    if (_isMarkingAllAsRead) return 0;
+    _isMarkingAllAsRead = true;
     notifyListeners();
 
     try {
       final count = await _notificationService.markAllAsRead();
+      _unreadCount = 0;
+      if (_unreadOnly) {
+        _notifications.clear();
+        _total = 0;
+      } else {
+        _notifications = [
+          for (final n in _notifications) n.copyWith(isRead: true),
+        ];
+      }
       await loadUnreadCount();
       return count;
-    } catch (e) {
-      _notifications = previousList;
-      _unreadCount = previousUnread;
+    } finally {
+      _isMarkingAllAsRead = false;
       notifyListeners();
-      rethrow;
     }
   }
 
@@ -159,6 +176,7 @@ class NotificationProvider extends ChangeNotifier {
     _notifications.removeAt(index);
     if (wasUnread && _unreadCount > 0) _unreadCount--;
     if (_total > 0) _total--;
+    if (_allTotal > 0) _allTotal--;
     notifyListeners();
 
     try {
@@ -168,6 +186,7 @@ class NotificationProvider extends ChangeNotifier {
       _notifications.insert(index, removed);
       if (wasUnread) _unreadCount++;
       _total++;
+      _allTotal++;
       notifyListeners();
       rethrow;
     }

@@ -63,6 +63,8 @@ class _StudentComplaintsScreenState extends State<StudentComplaintsScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),
           children: [
+            const Text('Complaints', style: AppTextStyles.headingLarge),
+            const SizedBox(height: AppDimensions.spacingMedium),
             Container(
               decoration: BoxDecoration(
                 color: AppColors.surface,

@@ -136,7 +136,7 @@ class AdminPlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AdminAppBar(title: title),
+      appBar: const AdminAppBar(),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),

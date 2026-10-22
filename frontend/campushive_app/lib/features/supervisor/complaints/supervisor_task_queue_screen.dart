@@ -45,10 +45,20 @@ class _SupervisorTaskQueueScreenState extends State<SupervisorTaskQueueScreen> {
     final items = provider.filteredComplaints;
 
     return Scaffold(
-      appBar: const SupervisorAppBar(title: 'Task Queue'),
+      appBar: const SupervisorAppBar(),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingMedium,
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingSmall,
+              ),
+              child: Text('Task Queue', style: AppTextStyles.headingLarge),
+            ),
             // Search & Filter Header
             Container(
               padding: const EdgeInsets.fromLTRB(

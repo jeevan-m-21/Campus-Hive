@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../app/routes.dart';
@@ -27,6 +28,7 @@ class FcmService {
     Future<RemoteMessage?> Function()? initialMessageGetter,
     Future<String?> Function()? tokenGetter,
     Future<NotificationSettings> Function()? permissionRequester,
+    Future<NotificationSettings> Function()? settingsGetter,
     bool registerBackgroundHandler = true,
   })  : _messaging = messaging,
         _authService = authService,
@@ -38,6 +40,7 @@ class FcmService {
         _initialMessageGetter = initialMessageGetter,
         _tokenGetter = tokenGetter,
         _permissionRequester = permissionRequester,
+        _settingsGetter = settingsGetter,
         _registerBackgroundHandler = registerBackgroundHandler;
 
   static FcmService? _instance;
@@ -54,6 +57,7 @@ class FcmService {
   final Future<RemoteMessage?> Function()? _initialMessageGetter;
   final Future<String?> Function()? _tokenGetter;
   final Future<NotificationSettings> Function()? _permissionRequester;
+  final Future<NotificationSettings> Function()? _settingsGetter;
   final bool _registerBackgroundHandler;
 
   FirebaseMessaging get _fcm => _messaging ?? FirebaseMessaging.instance;
@@ -69,6 +73,7 @@ class FcmService {
 
   bool _isInitialized = false;
   String? _registeredToken;
+  AuthorizationStatus? _lastPermissionStatus;
   Map<String, dynamic>? _pendingNotificationData;
   bool _isHandlingTap = false;
   StreamSubscription<String>? _tokenRefreshSub;
@@ -80,7 +85,19 @@ class FcmService {
 
   String? get registeredToken => _registeredToken;
   bool get isInitialized => _isInitialized;
+  AuthorizationStatus? get lastPermissionStatus => _lastPermissionStatus;
+  bool get hasNotificationPermission =>
+      _lastPermissionStatus == AuthorizationStatus.authorized ||
+      _lastPermissionStatus == AuthorizationStatus.provisional;
   Map<String, dynamic>? get pendingNotificationData => _pendingNotificationData;
+
+  /// Mask an FCM token for safe logging without exposing secrets.
+  static String maskToken(String? token) {
+    if (token == null || token.trim().isEmpty) return '<none>';
+    final clean = token.trim();
+    if (clean.length <= 12) return '***';
+    return '${clean.substring(0, 6)}...${clean.substring(clean.length - 4)} (len: ${clean.length})';
+  }
 
   void setPendingNotificationData(Map<String, dynamic>? data) {
     _pendingNotificationData = data;
@@ -140,63 +157,132 @@ class FcmService {
     _isInitialized = true;
   }
 
-  Future<String?> requestPermissionAndGetToken() async {
+  Future<String?> requestPermissionAndGetToken({bool requestPermission = true}) async {
     try {
-      if (_tokenGetter != null) {
-        return await _tokenGetter();
+      if (_permissionRequester == null &&
+          _settingsGetter == null &&
+          _messaging == null &&
+          _tokenGetter != null) {
+        _lastPermissionStatus = AuthorizationStatus.authorized;
+        final token = await _tokenGetter();
+        return token?.trim();
       }
 
-      final settings = _permissionRequester != null
-          ? await _permissionRequester()
-          : await _fcm.requestPermission(
-              alert: true,
-              badge: true,
-              sound: true,
-              provisional: false,
-            );
+      NotificationSettings settings;
+      if (_permissionRequester != null && requestPermission) {
+        settings = await _permissionRequester();
+      } else if (_settingsGetter != null && !requestPermission) {
+        settings = await _settingsGetter();
+      } else if (requestPermission) {
+        settings = await _fcm.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: false,
+        );
+      } else {
+        settings = await _fcm.getNotificationSettings();
+      }
+
+      _lastPermissionStatus = settings.authorizationStatus;
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
-        return await _fcm.getToken();
+        final token = _tokenGetter != null
+            ? await _tokenGetter()
+            : await _fcm.getToken();
+        return token?.trim();
+      } else {
+        debugPrint(
+          '[FCM] Notification permission not granted (status: ${settings.authorizationStatus}). Skipping token acquisition.',
+        );
+        return null;
       }
-      return null;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[FCM] Exception while retrieving notification token: $e');
       return null;
     }
   }
 
   Future<bool> registerToken([String? token]) async {
-    final fcmToken = token ?? await requestPermissionAndGetToken();
-    if (fcmToken == null || fcmToken.isEmpty) return false;
-    if (fcmToken == _registeredToken) return true;
+    final cleanInput = token?.trim();
+    final fcmToken = (cleanInput != null && cleanInput.isNotEmpty)
+        ? cleanInput
+        : (await requestPermissionAndGetToken(requestPermission: false))?.trim();
+
+    if (fcmToken == null || fcmToken.isEmpty) {
+      debugPrint('[FCM] registerToken: No valid token available to register.');
+      return false;
+    }
+
+    if (fcmToken == _registeredToken) {
+      debugPrint(
+        '[FCM] registerToken: Token already registered (${maskToken(fcmToken)}). Skipping API call.',
+      );
+      return true;
+    }
 
     try {
       final auth = _authService ?? AuthService(apiClient: _apiClient);
+      debugPrint('[FCM] Sending token update to backend: ${maskToken(fcmToken)}');
       final success = await auth.updateFcmToken(fcmToken);
       if (success) {
         _registeredToken = fcmToken;
+        debugPrint(
+          '[FCM] Token successfully persisted on backend: ${maskToken(fcmToken)}',
+        );
         return true;
+      } else {
+        debugPrint(
+          '[FCM] Backend rejected token update for: ${maskToken(fcmToken)}',
+        );
+        return false;
       }
-      return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[FCM] Exception while sending token to backend: $e');
       return false;
     }
   }
 
-  Future<void> onUserAuthenticated() async {
+  Future<bool> onUserAuthenticated({bool requestPermission = true}) async {
     try {
-      final token = await requestPermissionAndGetToken();
+      final token = await requestPermissionAndGetToken(
+        requestPermission: requestPermission,
+      );
+      bool registered = false;
       if (token != null && token.isNotEmpty) {
-        await registerToken(token);
+        registered = await registerToken(token);
+      } else {
+        debugPrint(
+          '[FCM] onUserAuthenticated: No token available to sync (status: $_lastPermissionStatus).',
+        );
       }
       _listenToTokenRefresh();
-    } catch (_) {
-      // Non-fatal: registration failure must never block login
+      return registered;
+    } catch (e) {
+      debugPrint('[FCM] Non-fatal error during onUserAuthenticated: $e');
+      return false;
+    }
+  }
+
+  /// Request permissions and synchronize token with backend (e.g. from UI action).
+  Future<bool> requestAndSyncToken() async {
+    return await onUserAuthenticated(requestPermission: true);
+  }
+
+  /// Mark token as already registered (e.g., when login/register payload included it).
+  void markTokenAsRegistered(String token) {
+    final clean = token.trim();
+    if (clean.isNotEmpty) {
+      _registeredToken = clean;
+      _listenToTokenRefresh();
     }
   }
 
   void onUserSignedOut() {
+    debugPrint('[FCM] User signed out. Clearing registered token.');
     _registeredToken = null;
+    _lastPermissionStatus = null;
     _tokenRefreshSub?.cancel();
     _tokenRefreshSub = null;
   }
@@ -204,10 +290,25 @@ class FcmService {
   void _listenToTokenRefresh() {
     _tokenRefreshSub?.cancel();
     try {
-      _tokenRefreshSub = _tokenRefreshStream.listen((newToken) {
-        registerToken(newToken);
-      });
-    } catch (_) {}
+      _tokenRefreshSub = _tokenRefreshStream.listen(
+        (newToken) async {
+          final clean = newToken.trim();
+          if (clean.isEmpty) return;
+          debugPrint('[FCM] Token refresh event received: ${maskToken(clean)}');
+          final success = await registerToken(clean);
+          if (success) {
+            debugPrint('[FCM] Refreshed token synced with backend: ${maskToken(clean)}');
+          } else {
+            debugPrint('[FCM] Failed to sync refreshed token with backend: ${maskToken(clean)}');
+          }
+        },
+        onError: (err) {
+          debugPrint('[FCM] Token refresh stream error: $err');
+        },
+      );
+    } catch (e) {
+      debugPrint('[FCM] Failed to attach token refresh listener: $e');
+    }
   }
 
   void handleForegroundMessage(RemoteMessage message) {

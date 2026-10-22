@@ -39,18 +39,7 @@ class _StudentDashboardView extends StatelessWidget {
     final imageUrl = _displayValue(user['profile_image']);
 
     return Scaffold(
-      appBar: StudentAppBar(
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            onPressed: () async {
-              await context.read<AuthProvider>().signOut();
-              if (context.mounted) context.go(AppRoutes.login);
-            },
-            icon: const Icon(Icons.logout_outlined),
-          ),
-        ],
-      ),
+      appBar: const StudentAppBar(),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>
@@ -61,6 +50,8 @@ class _StudentDashboardView extends StatelessWidget {
               AppDimensions.screenHorizontalPadding,
             ),
             children: [
+              const Text('Dashboard', style: AppTextStyles.headingLarge),
+              const SizedBox(height: AppDimensions.spacingMedium),
               _GreetingCard(
                 name: name,
                 identifier: identifier,

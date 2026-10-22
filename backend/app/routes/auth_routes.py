@@ -55,11 +55,58 @@ def register():
             phone=payload.get('phone'),
             profile_image=payload.get('profile_image'),
             fcm_token=payload.get('fcm_token'),
+            verification_token=payload.get('verification_token'),
         )
     except AuthServiceError as error:
         return _handle_auth_error(error)
 
     return success_response(result, 'User registered successfully.', 201)
+
+
+def _get_client_ip() -> str:
+    """Retrieve client IP, checking X-Forwarded-For if behind a proxy."""
+    forwarded_for = request.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.remote_addr or ''
+
+
+@auth_bp.route('/otp/send-registration-otp', methods=['POST'])
+def send_registration_otp():
+    """Send a six-digit verification OTP to the user's email prior to registration."""
+    payload = request.get_json(silent=True) or {}
+    ip_address = _get_client_ip()
+
+    try:
+        from app.services.otp_service import OtpService
+        result = OtpService.send_registration_otp(
+            email=payload.get('email'),
+            organization_id=payload.get('organization_id'),
+            academic_department_id=payload.get('academic_department_id'),
+            usn_or_employee_id=payload.get('usn_or_employee_id'),
+            ip_address=ip_address,
+        )
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Verification code sent to your email address.', 200)
+
+
+@auth_bp.route('/otp/verify-registration-otp', methods=['POST'])
+def verify_registration_otp():
+    """Verify the six-digit OTP and return a short-lived registration verification token."""
+    payload = request.get_json(silent=True) or {}
+
+    try:
+        from app.services.otp_service import OtpService
+        result = OtpService.verify_registration_otp(
+            email=payload.get('email'),
+            otp=payload.get('otp'),
+        )
+    except AuthServiceError as error:
+        return _handle_auth_error(error)
+
+    return success_response(result, 'Email verified successfully.', 200)
 
 
 @auth_bp.route('/login', methods=['POST'])
@@ -106,12 +153,12 @@ def update_fcm_token():
     payload = request.get_json(silent=True) or {}
     fcm_token = payload.get('fcm_token')
 
-    if not fcm_token:
+    if not fcm_token or not str(fcm_token).strip():
         return error_response('validation_error', 'fcm_token is required.', 400)
 
     try:
         result = AuthService.update_fcm_token(
-            fcm_token=fcm_token,
+            fcm_token=str(fcm_token).strip(),
             user_id=g.current_user.user_id,
         )
     except AuthServiceError as error:

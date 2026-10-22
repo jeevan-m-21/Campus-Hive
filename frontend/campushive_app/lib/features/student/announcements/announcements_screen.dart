@@ -15,10 +15,18 @@ import '../../../providers/announcement_provider.dart';
 import '../widgets/student_app_bar.dart';
 
 class AnnouncementsScreen extends StatelessWidget {
-  const AnnouncementsScreen({super.key});
+  const AnnouncementsScreen({this.provider, super.key});
+
+  final AnnouncementProvider? provider;
 
   @override
   Widget build(BuildContext context) {
+    if (provider != null) {
+      return ChangeNotifierProvider.value(
+        value: provider!,
+        child: const _AnnouncementsView(),
+      );
+    }
     return ChangeNotifierProvider(
       create: (_) => AnnouncementProvider()..load(),
       child: const _AnnouncementsView(),

@@ -56,10 +56,23 @@ class _AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
     final items = provider.filteredComplaints;
 
     return Scaffold(
-      appBar: const AdminAppBar(title: 'Complaint Management'),
+      appBar: const AdminAppBar(),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingMedium,
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingSmall,
+              ),
+              child: Text(
+                'Complaint Management',
+                style: AppTextStyles.headingLarge,
+              ),
+            ),
             // Filter and Search Header
             Container(
               padding: const EdgeInsets.fromLTRB(

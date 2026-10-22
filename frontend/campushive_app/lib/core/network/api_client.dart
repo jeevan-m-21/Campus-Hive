@@ -32,15 +32,18 @@ class ApiClient {
 
   Future<Map<String, dynamic>> post(
     String path, {
-    required String idToken,
+    String? idToken,
     required Map<String, dynamic> body,
   }) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    if (idToken != null && idToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $idToken';
+    }
     final response = await _client.post(
       Uri.parse('${AppConstants.apiBaseUrl}$path'),
-      headers: {
-        'Authorization': 'Bearer $idToken',
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: jsonEncode(body),
     );
 

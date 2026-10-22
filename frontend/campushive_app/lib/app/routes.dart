@@ -7,8 +7,10 @@ import '../features/org_admin/notifications/admin_notifications_screen.dart';
 import '../features/org_admin/users/admin_supervisors_screen.dart';
 import '../features/auth/landing_screen.dart';
 import '../features/auth/login_screen.dart';
+import '../features/auth/otp_verification_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
+import '../models/email_verification.dart';
 import '../features/student/student_shell.dart';
 import '../features/student/announcements/announcement_detail_screen.dart';
 import '../features/student/complaints/complaint_detail_screen.dart';
@@ -27,6 +29,7 @@ abstract final class AppRoutes {
   static const landing = '/landing';
   static const login = '/login';
   static const register = '/register';
+  static const otpVerification = '/register/verify-otp';
   static const studentDashboard = '/student/dashboard';
   static const studentComplaints = '/student/complaints';
   static const studentLostFound = '/student/lost-found';
@@ -94,6 +97,16 @@ abstract final class AppRoutes {
         GoRoute(
           path: register,
           builder: (context, state) => const RegisterScreen(),
+        ),
+        GoRoute(
+          path: otpVerification,
+          builder: (context, state) {
+            final args = state.extra as RegistrationData?;
+            if (args == null) {
+              return const RegisterScreen();
+            }
+            return OtpVerificationScreen(registrationData: args);
+          },
         ),
         // Student Routes
         GoRoute(

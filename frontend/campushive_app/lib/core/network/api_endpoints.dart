@@ -1,6 +1,8 @@
 abstract final class ApiEndpoints {
   static const login = '/auth/login';
   static const register = '/auth/register';
+  static const sendRegistrationOtp = '/auth/otp/send-registration-otp';
+  static const verifyRegistrationOtp = '/auth/otp/verify-registration-otp';
   static const me = '/auth/me';
   static const updateProfile = '/auth/profile';
   static const uploadProfileImage = '/auth/profile-image';

@@ -226,6 +226,7 @@ class AuthService:
         phone: Optional[str] = None,
         profile_image: Optional[str] = None,
         fcm_token: Optional[str] = None,
+        verification_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create or update the user record after Firebase registration."""
 
@@ -321,10 +322,24 @@ class AuthService:
         if duplicate_identifier is not None:
             raise ConflictError("A user with this USN or student identifier already exists.")
 
+        # Enforce email OTP verification token for public student registration
+        if resolved_role == 'STUDENT':
+            from app.services.otp_service import OtpService
+
+            OtpService.validate_and_consume_token(
+                verification_token=verification_token or '',
+                expected_email=email,
+                organization_id=resolved_organization_id,
+                academic_department_id=resolved_academic_department_id,
+                usn_or_employee_id=resolved_usn_or_employee_id,
+            )
+
         resolved_phone = phone or AuthService._extract_claim_value(claims, 'phone_number', 'phone')
         resolved_profile_image = profile_image or AuthService._extract_claim_value(claims, 'picture', 'profile_image')
 
         user = User.query.filter_by(firebase_uid=firebase_uid).first()
+
+        clean_fcm_token = str(fcm_token).strip() if fcm_token and str(fcm_token).strip() else None
 
         if user is None:
             existing_email = User.query.filter(
@@ -344,7 +359,7 @@ class AuthService:
                 phone=resolved_phone,
                 role=resolved_role,
                 profile_image=resolved_profile_image,
-                fcm_token=fcm_token,
+                fcm_token=clean_fcm_token,
             )
             db.session.add(user)
         else:
@@ -364,14 +379,31 @@ class AuthService:
             user.phone = resolved_phone
             user.role = resolved_role
             user.profile_image = resolved_profile_image
-            if fcm_token is not None:
-                user.fcm_token = fcm_token
+            if clean_fcm_token is not None:
+                user.fcm_token = clean_fcm_token
 
         try:
             db.session.commit()
+            if clean_fcm_token:
+                masked_token = f"{clean_fcm_token[:6]}... (len={len(clean_fcm_token)})"
+                current_app.logger.info(
+                    f"Synced FCM token on registration for user_id={user.user_id} (token={masked_token})"
+                )
         except Exception as exc:
             db.session.rollback()
             raise AuthServiceError('Unable to persist registered user.') from exc
+
+        # Synchronize Firebase email_verified state
+        try:
+            AuthService._ensure_firebase_app()
+            firebase_auth.update_user(firebase_uid, email_verified=True)
+            current_app.logger.info(
+                f"Synchronized email_verified=True on Firebase for uid={firebase_uid}"
+            )
+        except Exception as exc:
+            current_app.logger.warning(
+                f"Could not synchronize email_verified on Firebase for uid={firebase_uid}: {exc}"
+            )
 
         return {
             'user': AuthService._serialize_user(user),
@@ -411,7 +443,13 @@ class AuthService:
 
         user.last_login = datetime.utcnow()
         if fcm_token is not None:
-            user.fcm_token = fcm_token
+            clean_token = str(fcm_token).strip()
+            if clean_token:
+                user.fcm_token = clean_token
+                masked_token = f"{clean_token[:6]}... (len={len(clean_token)})"
+                current_app.logger.info(
+                    f"Synced FCM token on login for user_id={user.user_id} (token={masked_token})"
+                )
 
         try:
             db.session.commit()
@@ -464,8 +502,10 @@ class AuthService:
     ) -> Dict[str, Any]:
         """Update the user's FCM token."""
 
-        if not fcm_token:
+        if not fcm_token or not str(fcm_token).strip():
             raise ValidationError('fcm_token is required.')
+
+        clean_token = str(fcm_token).strip()
 
         resolved_uid = firebase_uid
         if id_token:
@@ -483,13 +523,21 @@ class AuthService:
         if user is None:
             raise NotFoundError('User not found.')
 
-        user.fcm_token = fcm_token
+        user.fcm_token = clean_token
 
         try:
             db.session.commit()
         except Exception as exc:
             db.session.rollback()
+            current_app.logger.error(
+                f"Failed to persist FCM token for user_id={user.user_id}: {exc.__class__.__name__}"
+            )
             raise AuthServiceError('Unable to update FCM token.') from exc
+
+        masked_token = f"{clean_token[:6]}... (len={len(clean_token)})"
+        current_app.logger.info(
+            f"Successfully persisted FCM token for user_id={user.user_id} (token={masked_token})"
+        )
 
         return {
             'user': AuthService._serialize_user(user),

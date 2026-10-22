@@ -1,9 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../app/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -11,6 +9,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/editable_profile_avatar.dart';
+import '../../../core/widgets/logout_confirmation_dialog.dart';
 import '../../../models/department.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/supervisor_complaint_provider.dart';
@@ -19,7 +18,9 @@ import '../../../services/complaint_service.dart';
 import '../widgets/supervisor_app_bar.dart';
 
 class SupervisorProfileScreen extends StatefulWidget {
-  const SupervisorProfileScreen({super.key});
+  const SupervisorProfileScreen({this.complaintService, super.key});
+
+  final ComplaintService? complaintService;
 
   @override
   State<SupervisorProfileScreen> createState() =>
@@ -37,7 +38,8 @@ class _SupervisorProfileScreenState extends State<SupervisorProfileScreen> {
 
   Future<void> _loadDepartments() async {
     try {
-      final depts = await ComplaintService().fetchDepartments();
+      final service = widget.complaintService ?? ComplaintService();
+      final depts = await service.fetchDepartments();
       if (mounted) setState(() => _departments = depts);
     } catch (_) {}
   }
@@ -48,11 +50,13 @@ class _SupervisorProfileScreenState extends State<SupervisorProfileScreen> {
     final user = session?.user ?? const <String, dynamic>{};
 
     return Scaffold(
-      appBar: const SupervisorAppBar(title: 'Supervisor Profile'),
+      appBar: const SupervisorAppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),
           children: [
+            const Text('Supervisor Profile', style: AppTextStyles.headingLarge),
+            const SizedBox(height: AppDimensions.spacingMedium),
             _ProfileHeader(user: user),
             const SizedBox(height: AppDimensions.spacingLarge),
             _ProfileDetails(user: user, departments: _departments),
@@ -390,10 +394,7 @@ class _ProfileActions extends StatelessWidget {
           icon: Icons.logout_outlined,
           variant: AppButtonVariant.outlined,
           expand: true,
-          onPressed: () async {
-            await context.read<AuthProvider>().signOut();
-            if (context.mounted) context.go(AppRoutes.login);
-          },
+          onPressed: () => LogoutConfirmationDialog.show(context),
         ),
       ],
     );
