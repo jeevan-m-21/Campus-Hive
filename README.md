@@ -1,145 +1,124 @@
-# CampusHive — Smart Campus Complaint & Lost-and-Found Management System
+# CampusHive — Smart Campus Issue & Community Management Platform
 
-CampusHive is an enterprise-grade, multi-tenant campus management platform designed to streamline issue reporting, departmental resolution workflows, lost-and-found recovery, and campus-wide communications for higher education institutions.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.3-green.svg)](https://flask.palletsprojects.com/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.19%2B-02569B.svg)](https://flutter.dev/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange.svg)](https://www.mysql.com/)
+[![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20FCM-FFCA28.svg)](https://firebase.google.com/)
 
-Built with a cross-platform **Flutter** mobile client, a **Python/Flask** RESTful API, a relational **MySQL** database, and **Firebase Authentication**, CampusHive centralizes student grievances and administrative operations into a secure, role-based ecosystem.
+CampusHive is an enterprise-grade, multi-tenant campus issue management and interaction platform designed for collegiate institutions. It unifies student grievance reporting, supervisor resolution queues, administrative analytics, lost-and-found recovery, and institutional announcements into a secure, role-based mobile and cloud ecosystem.
 
 ---
 
 ## Table of Contents
 
-- [Problem Statement](#problem-statement)
-- [Proposed Solution](#proposed-solution)
-- [Key Features](#key-features)
+- [Project Overview & Problem Statement](#project-overview--problem-statement)
+- [Core Features](#core-features)
 - [User Roles & Permissions](#user-roles--permissions)
 - [Technology Stack](#technology-stack)
 - [System Architecture](#system-architecture)
 - [Repository Structure](#repository-structure)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Database Setup](#1-database-setup)
-  - [Backend Setup](#2-backend-setup)
-  - [Frontend Setup](#3-frontend-setup)
-  - [Device & Network Configuration](#4-device--network-configuration)
-- [Environment Configuration & Security](#environment-configuration--security)
-- [Current Implementation Status](#current-implementation-status)
-- [Future Enhancements](#future-enhancements)
-- [Project Documentation](#project-documentation)
-- [Contribution & Guidelines](#contribution--guidelines)
+- [Prerequisites](#prerequisites)
+- [Local Development Setup](#local-development-setup)
+  - [1. Database Initialization (MySQL)](#1-database-initialization-mysql)
+  - [2. Backend Setup (Flask)](#2-backend-setup-flask)
+  - [3. Mobile Client Setup (Flutter)](#3-mobile-client-setup-flutter)
+- [Email OTP Verification & SMTP Diagnostics](#email-otp-verification--smtp-diagnostics)
+- [Push Notifications & Firebase Setup](#push-notifications--firebase-setup)
+- [API Reference](#api-reference)
+- [Environment Configuration](#environment-configuration)
+- [Deployment Overview](#deployment-overview)
+- [Testing & Quality Assurance](#testing--quality-assurance)
+- [Security Considerations](#security-considerations)
+- [Documentation Index](#documentation-index)
 
 ---
 
-## Problem Statement
+## Project Overview & Problem Statement
 
-Educational campuses operate across large physical infrastructures serving thousands of students, faculty, and administrative personnel. Traditional campus management processes face significant hurdles:
+Collegiate campuses operate across extensive physical infrastructures serving thousands of students, faculty, and administrative staff. Traditional campus maintenance and grievance processes suffer from:
 
-1. **Fragmented Issue Reporting**: Maintenance and facility grievances (electrical hazards, plumbing leaks, laboratory equipment failures, sanitation problems) are typically reported through informal channels, handwritten registers, or unmonitored email threads.
-2. **Lack of Transparency & SLA Tracking**: Students have no visibility into the status of their complaints, who is assigned to resolve them, or expected resolution deadlines. Supervisors lack standardized tools to manage workloads and document remarks.
-3. **Inefficient Lost & Found Management**: Lost personal belongings rely on physical bulletin boards, scattered security desks, or unofficial social media groups, resulting in low recovery rates and uncatalogued items.
-4. **Communication Gaps**: Urgent campus circulars and departmental announcements get buried in crowded inboxes or missed entirely on physical noticeboards.
-5. **Data Silos**: Campus administrators lack centralized analytics to identify recurring departmental bottlenecks, prioritize critical maintenance, and monitor operational efficiency across institutions.
+1. **Fragmented Reporting**: Facility issues (electrical, plumbing, IT, sanitation, laboratories) are reported via paper registers or informal social channels without tracking.
+2. **Lack of SLA Accountability**: Students lack visibility into complaint status, assigned supervisors, or resolution timelines.
+3. **Inefficient Lost & Found**: Personal belongings rely on physical notice boards, resulting in low recovery rates.
+4. **Broadcast Fatigue**: Critical notices are lost in unread email circulars.
 
----
-
-## Proposed Solution
-
-CampusHive addresses these operational challenges through a unified mobile and backend platform:
-
-- **Centralized Grievance Lifecycle**: Students submit geotagged and photo-documented complaints mapped to specific academic and facility departments. Issues progress through a structured lifecycle with real-time status transitions.
-- **Data-Driven Priority Engine**: Combines community support (upvoting) with machine-learning-assisted classification to surface urgent campus issues and assign automated resolution deadlines based on departmental SLAs.
-- **Digital Lost & Found Marketplace**: A searchable repository where students report lost or found items with images, descriptions, and resolution tracking.
-- **Institutional Broadcasts**: Administrators publish official campus notices with priority indicators and direct links to media or document circulars.
-- **Multi-Tenant SaaS Architecture**: A single deployment securely isolates data across multiple educational organizations while enabling standardized departmental structures and role-based workflows.
+CampusHive resolves these issues through a unified platform featuring **data-driven machine learning prioritization**, **community support weighting**, **SLA deadline enforcement**, **secure student email OTP verification**, and **push notifications**.
 
 ---
 
-## Key Features
+## Core Features
 
-### 1. Complaint Reporting & Resolution Lifecycle
-- **Rich Complaint Submission**: Students file complaints categorized by department, accompanied by titles, descriptions, specific campus locations, and optional photo attachments.
-- **Structured Status Workflow**: Complaints transition through strictly enforced states: `PENDING` &rarr; `ASSIGNED` &rarr; `IN_PROGRESS` &rarr; `RESOLVED` &rarr; `CLOSED` (or `REOPENED` / `ESCALATED`).
-- **Departmental SLA Deadlines**: Automatically calculates completion deadlines based on priority and departmental configuration.
-- **Internal & Public Remarks**: Supervisors and administrators append resolution notes and internal comments for accountability.
+### 1. Grievance Lifecycle & SLA Management
+* **Rich Complaint Creation**: Categorized by department with titles, descriptions, location details, and multi-image attachments.
+* **Structured Status Transitions**: `PENDING` &rarr; `ASSIGNED` &rarr; `IN_PROGRESS` &rarr; `RESOLVED` &rarr; `CLOSED` (with `REOPENED` and `ESCALATED` states).
+* **Departmental Resolution SLAs**: Configurable resolution deadlines (`priority_high_hours`, `priority_medium_hours`, `priority_low_hours`).
+* **Remarks & Status Auditing**: Every status update logs timestamped remarks and the acting supervisor/admin in `complaint_status_history`.
 
-### 2. Community Upvoting & Support
-- **Issue Validation**: Students can support/upvote complaints submitted by peers to highlight widespread campus problems.
-- **Algorithmic Weighting**: Upvote counts feed into the complaint prioritization formula to escalate heavily supported issues.
+### 2. Prioritization Engine (ML & Community Upvoting)
+* **Scikit-Learn NLP Model**: TF-IDF N-Gram Vectorizer + Random Forest classifier (`priority_model.joblib`) predicts issue severity (`LOW`, `MEDIUM`, `HIGH`).
+* **Community Support Curve**: Logarithmic scaling of student peer upvotes (`log(1 + supports)`) amplifies pressing community grievances.
+* **Heuristic Fallback**: Keyword rule-based fallback guarantees consistent priority calculations even without ML inference.
+* **Automated Model Retraining**: Optional background pipeline (`RetrainingService`) periodically trains candidate models on resolved complaint history.
 
-### 3. Departmental Supervisor Management
-- **Filtered Task Queue**: Supervisors view tickets scoped to their assigned departments.
-- **Direct Status Management**: Supervisors accept assigned tasks, update progress status, add operational remarks, and resolve issues within set deadlines.
-- **Workload Summary**: Dedicated supervisor dashboard tracking active, pending, and resolved workloads.
+### 3. Departmental Supervisor Queues
+* **Department-Scoped Tasks**: Supervisors access tickets assigned to their operational departments.
+* **Workflow Tools**: Accept complaints, update progress status, document resolution remarks, and monitor approaching deadlines.
 
 ### 4. Organization Administration & Analytics
-- **Live Institutional KPI Dashboard**: Organization administrators monitor real-time complaint resolution metrics, departmental distribution, high-priority ticket alerts, and recent activities.
-- **Universal Complaint Workspace**: Organization-wide complaint inspection, manual supervisor assignment, priority overrides, and deadline adjustments.
-- **Broadcast Management**: Full announcement CRUD operations with urgent priority flags, media/document attachments, and real-time feed updates.
-- **Administrator Profile**: Account credential management with direct Firebase password updates and session controls.
+* **Live KPI Dashboard**: Real-time breakdown of open vs. resolved complaints, high-priority alerts, and departmental performance.
+* **Ticket Management Workspace**: Override priorities, manually assign/reassign supervisors, and monitor resolution remarks.
+* **Broadcast Announcements**: Publish circulars with `LOW`, `NORMAL`, or `URGENT` flags, including remote links, PDF documents, or image attachments.
 
-### 5. Lost & Found Management
-- **Categorized Listings**: Filter and browse items marked as `LOST` or `FOUND`.
-- **Photo & Detail Verification**: Attach photographs, item descriptions, and last-seen locations.
-- **Claim & Status Resolution**: Post creators can mark items as resolved or claimed once recovered.
+### 5. Campus Lost & Found
+* **Categorized Listings**: Filterable catalog of `LOST` and `FOUND` personal belongings.
+* **Item Verification**: Photos, descriptions, dates, and locations. Item posters can mark listings as resolved or claimed.
 
-### 6. Campus Announcements & Notifications
-- **Broadcast Notices**: Official campus announcements with importance badges (`IMPORTANT`) and support for remote image, PDF document, and web link attachments.
-- **Community Likes**: Users can react to campus announcements with persistent like counters.
-- **In-App Notification Center**: Unread badge indicators on app bars, filterable notification feeds (`All` vs `Unread Only`), single/bulk mark-as-read actions, deletion confirmation, and contextual routing to complaints or announcements.
-
-### 7. Prioritization System
-- **Scikit-Learn Classifier**: TF-IDF text vectorizer paired with a Random Forest model trained to classify complaint urgency based on issue descriptions.
-- **Logarithmic Support Curve**: Upvote normalization using logarithmic scaling combined with model output to derive final issue priority (`LOW`, `MEDIUM`, `HIGH`).
-- **Heuristic Fallback**: Deterministic keyword-based classification fallback ensuring resilient priority calculation in all environments.
+### 6. Notifications & In-App Notification Center
+* **Firebase Cloud Messaging (FCM)**: Push notifications delivered to registered device tokens upon assignment, status update, or circular publication.
+* **Unified Notification Feed**: Standardized notification center with `All` vs. `Unread` filters, unread badge counters, single/bulk mark-as-read, and deep-link routing.
 
 ---
 
 ## User Roles & Permissions
 
-CampusHive enforces strict Role-Based Access Control (RBAC) across all client interfaces and API endpoints:
-
-| Role | Target Interface | Core Responsibilities |
+| Role | Interface | Permissions & Capabilities |
 |---|---|---|
-| **Student** | Student Shell | File complaints, upvote peer issues, report lost/found items, view announcements, track personal activity history, and receive notification updates. |
-| **Department Supervisor** | Supervisor Shell | Access department-specific complaint queues, review complaint details, update progress status, document resolution remarks, and track assigned deadlines. |
-| **Organization Admin** | Admin Shell | Monitor organization-wide complaint analytics, reassign supervisors, adjust priority/deadlines, publish campus announcements, and manage account credentials. |
-| **Super Admin** | System / Backend | Global platform administration, institution onboarding, organization lifecycle management, and system-wide audit logging. |
+| **Student** (`STUDENT`) | Student Shell | File complaints, upvote peers, report lost/found items, view circulars, receive FCM alerts, track personal complaint activity history. |
+| **Department Supervisor** (`SUPERVISOR`) | Supervisor Shell | Access department task queues, review complaint details, advance statuses, record resolution remarks, resolve complaints. |
+| **Organization Admin** (`ORG_ADMIN`) | Admin Shell | Institution-wide analytics, assign supervisors, adjust priorities/deadlines, post announcements, manage administrative credentials. |
+| **Super Admin** (`SUPER_ADMIN`) | System / Backend | Global platform administration, institution onboarding, organization lifecycle management. |
 
 ---
 
 ## Technology Stack
 
-### Frontend Application
-- **Framework**: [Flutter](https://flutter.dev/) (v3.x) with [Dart](https://dart.dev/) (v3.11+)
-- **State Management**: [Provider](https://pub.dev/packages/provider) (`ChangeNotifierProvider`, `MultiProvider`)
-- **Navigation & Routing**: [GoRouter](https://pub.dev/packages/go_router) (declarative, URL-aware routing with shell branches)
-- **Networking**: [http](https://pub.dev/packages/http) client with unified interceptor-style `ApiClient`
-- **Authentication**: [firebase_auth](https://pub.dev/packages/firebase_auth) & [firebase_core](https://pub.dev/packages/firebase_core)
-- **Secure Storage**: [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage) for JWT and session tokens
-- **Hardware Integration**: [image_picker](https://pub.dev/packages/image_picker) for camera and gallery photo uploads
+### Frontend Mobile Client (`frontend/campushive_app`)
+* **Framework**: Flutter 3.19+ (Dart 3.11+)
+* **State Management**: Provider (`MultiProvider`, `ChangeNotifierProvider`)
+* **Navigation**: GoRouter with declarative shell routes
+* **Authentication**: Firebase Authentication (`firebase_auth`) + backend OTP token verification
+* **Push Notifications**: Firebase Cloud Messaging (`firebase_messaging`)
+* **Local Security**: `flutter_secure_storage` for token and profile persistence
+* **HTTP Client**: Standard Dart `http` library with centralized `ApiClient`
 
-### Backend API
-- **Framework**: [Flask](https://flask.palletsprojects.com/) (v3.0.3)
-- **ORM & Migrations**: [Flask-SQLAlchemy](https://flask-sqlalchemy.palletsprojects.com/) & [Flask-Migrate](https://flask-migrate.readthedocs.io/) ([SQLAlchemy](https://www.sqlalchemy.org/) 2.0)
-- **Database Driver**: [PyMySQL](https://pymysql.readthedocs.io/)
-- **Security & Token Validation**: [firebase-admin](https://firebase.google.com/docs/admin/setup) SDK, [PyJWT](https://pyjwt.readthedocs.io/), [bcrypt](https://pypi.org/project/bcrypt/)
-- **Serialization & Validation**: [Marshmallow](https://marshmallow.readthedocs.io/)
-- **CORS Handling**: [Flask-CORS](https://flask-cors.readthedocs.io/)
-- **Task Scheduling**: [APScheduler](https://apscheduler.readthedocs.io/)
-- **Production Server**: [Gunicorn](https://gunicorn.org/)
+### Backend REST API (`backend/`)
+* **Framework**: Flask 3.0.3 (Application factory pattern)
+* **Database Driver & ORM**: PyMySQL 1.1.1, SQLAlchemy 2.0.36, Flask-SQLAlchemy 3.1.1
+* **Token Verification**: Firebase Admin SDK 6.6.0 (`app.middleware.firebase_auth`)
+* **Machine Learning**: Scikit-Learn 1.5.2, NumPy 2.1.3, Pandas 2.2.3, Joblib 1.4.2
+* **Email & OTP**: Python `smtplib`, `email.mime`, SHA-256 HMAC tokens
+* **Task Scheduling**: APScheduler 3.10.4
+* **Production WSGI**: Gunicorn 23.0.0
 
-### Machine Learning
-- **Libraries**: [scikit-learn](https://scikit-learn.org/), [NumPy](https://numpy.org/), [Pandas](https://pandas.pydata.org/), [Joblib](https://joblib.readthedocs.io/)
-- **Model Pipeline**: TF-IDF N-gram vectorizer + Random Forest Classifier trained on campus grievance semantics (`priority_model.joblib`)
-
-### Persistence & Storage
-- **Database**: [MySQL 8.0](https://www.mysql.com/) (Relational schema, foreign key constraints, composite indexes, timestamp triggers)
-- **Media Storage**: Local multi-part storage (`/uploads/complaints/`) with support for remote Cloud Storage bucket URLs
+### Persistence & Cloud Services
+* **Database**: MySQL 8.0+ (19 relational tables, InnoDB, foreign keys, composite indexes)
+* **Target Cloud**: AWS EC2 (Ubuntu Linux) + AWS RDS MySQL
+* **Reverse Proxy & SSL**: Nginx + Let's Encrypt / Certbot
 
 ---
 
 ## System Architecture
-
-CampusHive follows a layered client-server architecture with strict separation between presentation, API routing, business services, and persistence:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -149,19 +128,20 @@ CampusHive follows a layered client-server architecture with strict separation b
 │   └─────────┬─────────┘ └──────────┬───────────┘ └────────┬────────┘   │
 │             └──────────────────────┼──────────────────────┘            │
 │                     Provider State Management & GoRouter               │
-└────────────────────────────────────┼───────────────────────────────────┘
+└────────────────────────────────────┬───────────────────────────────────┘
                                      │ HTTPS / REST (JSON)
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        API GATEWAY / FLASK APP                         │
-│  - CORS Middleware      - Firebase ID Token Verification (Auth Guard)  │
-│  - Role Verification    - Centralized Error Handling & JSON Responses  │
+│               WEB REVERSE PROXY & API GATEWAY (EC2)                    │
+│  - Nginx: SSL Termination (Let's Encrypt), Static `/uploads/` Serving │
+│  - Gunicorn WSGI Server: Process supervision & worker management       │
+│  - Flask Middleware: Firebase ID Token Guard & Role-Based Access       │
 └────────────────────────────────────┬───────────────────────────────────┘
                                      │
           ┌──────────────────────────┼──────────────────────────┐
           ▼                          ▼                          ▼
 ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│  Auth Blueprints │       │ Complaint Routes │       │ Announcements &  │
+│  Auth & OTP APIs │       │ Complaint Routes │       │ Announcements &  │
 │  & Organizations │       │ & Lost-and-Found │       │ Notifications    │
 └─────────┬────────┘       └─────────┬────────┘       └─────────┬────────┘
           │                          │                          │
@@ -169,22 +149,18 @@ CampusHive follows a layered client-server architecture with strict separation b
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                     BUSINESS SERVICES LAYER                            │
-│  ┌────────────────────────┐  ┌──────────────────────────────────────┐  │
-│  │ PriorityService (ML)   │  │ Escalation & Assignment Services     │  │
-│  └──────────┬─────────────┘  └──────────────────┬───────────────────┘  │
-│             │                                   │                      │
-│             ▼                                   ▼                      │
-│   Scikit-Learn Pipeline             NotificationService                │
-│   (TF-IDF + Random Forest)                                             │
+│  PriorityService (ML) │ EscalationService │ EmailService │ FcmService  │
 └────────────────────────────────────┬───────────────────────────────────┘
-                                     │ SQLAlchemy ORM
+                                     │ SQLAlchemy ORM / PyMySQL
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        DATA LAYER (MySQL 8.0)                          │
-│   organizations │ departments │ users │ complaints │ complaint_images  │
-│   complaint_supports │ announcements │ lost_found │ notifications     │
+│                     DATABASE LAYER (AWS RDS MySQL)                     │
+│  - Multi-tenant data segregation by `organization_id`                  │
+│  - 19 Normalized Relational Tables (InnoDB, utf8mb4)                   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
+
+For complete architectural specifications, see [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md).
 
 ---
 
@@ -192,286 +168,310 @@ CampusHive follows a layered client-server architecture with strict separation b
 
 ```
 campus_hive/
-├── DATABASE_SCHEMA.md                 # Complete MySQL schema reference & documentation
-├── PHASE_1_COMPLETION.md              # Phase 1 architectural summary and deliverables
-├── PROJECT_SETUP_GUIDE.md             # In-depth setup instructions and troubleshooting
-├── README.md                          # Main project documentation (this file)
-├── SYSTEM_ARCHITECTURE.md             # Architectural specifications and module flows
+├── DATABASE_SCHEMA.md                 # Verified 19-table MySQL schema & migrations reference
+├── DEPLOYMENT_GUIDE.md                # Production guide (AWS EC2, RDS, Nginx, SSL, Gunicorn)
+├── ENVIRONMENT_VARIABLES.md           # Exhaustive environment variable reference
+├── PROJECT_SETUP_GUIDE.md             # In-depth local developer installation guide
+├── README.md                          # Main repository overview & reference (this document)
+├── SYSTEM_ARCHITECTURE.md             # End-to-end system and security architecture
+├── PHASE_1_COMPLETION.md              # Historical Phase 1 milestone report (Archived)
 │
-├── campushive_db_v1.sql/              # Modular MySQL initialization dump scripts
+├── campushive_db_v1.sql/              # Modular MySQL base table initialization dumps
 │   ├── campushive_db_organizations.sql
 │   ├── campushive_db_departments.sql
 │   ├── campushive_db_users.sql
 │   ├── campushive_db_complaints.sql
-│   ├── campushive_db_complaint_images.sql
-│   ├── campushive_db_complaint_supports.sql
-│   ├── campushive_db_complaint_status_history.sql
-│   ├── campushive_db_announcements.sql
-│   ├── campushive_db_notifications.sql
-│   ├── campushive_db_lost_found.sql
 │   └── ...
 │
-├── backend/                           # Python / Flask REST API
-│   ├── app.py                         # Application entrypoint
-│   ├── config.py                      # Multi-environment configuration
+├── backend/                           # Flask Python RESTful Backend API
+│   ├── app.py                         # Application entrypoint & CLI runner
+│   ├── config.py                      # Multi-environment configuration manager
 │   ├── requirements.txt               # Backend dependencies
 │   ├── .env.example                   # Environment configuration template
+│   ├── migrations/                    # Chronological SQL schema migrations
+│   │   ├── 20260920_add_ml_retraining_tables.sql
+│   │   ├── 20261019_add_announcement_attachments.sql
+│   │   └── 20261021_add_email_verifications.sql
 │   └── app/
-│       ├── __init__.py                # Flask application factory
-│       ├── database.py                # Database instance & session management
+│       ├── __init__.py                # Flask application factory (`create_app`, `make_app`)
+│       ├── database.py                # SQLAlchemy database initialization
 │       ├── middleware/
-│       │   └── firebase_auth.py       # Firebase authentication & RBAC decorators
-│       ├── ml/
-│       │   ├── priority_model.py      # Scikit-Learn TF-IDF + Random Forest model
-│       │   ├── priority_model.joblib  # Serialized trained model weights
-│       │   └── train_priority_model.py
-│       ├── models/                    # SQLAlchemy declarative models
-│       │   ├── base.py
-│       │   ├── user.py
-│       │   ├── complaint.py
-│       │   ├── department.py
-│       │   ├── announcement.py
-│       │   ├── notification.py
-│       │   ├── lost_found.py
-│       │   └── organization.py
-│       ├── routes/                    # API route blueprints
-│       │   ├── auth_routes.py
-│       │   ├── complaint_routes.py
-│       │   ├── announcement_routes.py
-│       │   ├── notification_routes.py
-│       │   ├── lost_found_routes.py
-│       │   ├── organization_routes.py
-│       │   └── analytics_routes.py
-│       ├── services/                  # Business logic services
-│       │   ├── auth_service.py
-│       │   ├── priority_service.py    # Hybrid ML + support priority calculator
-│       │   ├── notification_service.py
-│       │   └── assignment_service.py
-│       └── utils/
-│           └── helpers.py             # Pagination, formatting, and responses
+│       │   └── firebase_auth.py       # Firebase ID token validation & role decorators
+│       ├── ml/                        # ML priority model, vectorizer & joblib weights
+│       ├── models/                    # 19 SQLAlchemy declarative models
+│       ├── routes/                    # API route blueprints (Auth, Complaints, Orgs, etc.)
+│       └── services/                  # Business services (Auth, Email, FCM, Priority)
 │
 └── frontend/
-    └── campushive_app/                # Active Flutter mobile application
+    └── campushive_app/                # Active Flutter Mobile Application
         ├── pubspec.yaml               # Flutter package configuration & assets
+        ├── android/                   # Native Android configuration & google-services.json
         └── lib/
-            ├── main.dart              # Flutter application entrypoint
-            ├── app/
-            │   ├── app.dart           # Root MaterialApp & MultiProvider configuration
-            │   └── routes.dart        # GoRouter routes and shell builders
-            ├── core/
-            │   ├── constants/         # AppConstants (API base URL)
-            │   ├── network/           # ApiClient, ApiEndpoints, ApiException
-            │   ├── storage/           # FlutterSecureStorage wrapper
-            │   ├── theme/             # AppColors, AppDimensions, AppTextStyles, AppTheme
-            │   └── widgets/           # AppButton, AppCard, AppLoader, AppTextField, EmptyState
-            ├── models/                # Client domain models
-            │   ├── user.dart
-            │   ├── complaint.dart
-            │   ├── department.dart
-            │   ├── announcement.dart
-            │   └── notification.dart
+            ├── main.dart              # Flutter application bootstrap
+            ├── app/                   # App widget, theme, and GoRouter routes
+            ├── core/                  # ApiClient, AppConstants, widgets, and storage
+            ├── features/              # Feature modules by role (Student, Supervisor, Admin)
+            ├── models/                # Client DTO models
             ├── providers/             # State management providers
-            │   ├── auth_provider.dart
-            │   ├── home_feed_provider.dart
-            │   ├── supervisor_complaint_provider.dart
-            │   ├── admin_complaint_provider.dart
-            │   ├── announcement_provider.dart
-            │   └── notification_provider.dart
-            ├── services/              # Client networking services
-            │   ├── auth_service.dart
-            │   ├── complaint_service.dart
-            │   ├── announcement_service.dart
-            │   └── notification_service.dart
-            └── features/              # Feature modules by user role
-                ├── auth/              # Splash, Landing, Login, Register screens
-                ├── student/           # Student shell, dashboard, complaints, lost & found, profile
-                ├── supervisor/        # Supervisor shell, queue, complaint detail, profile
-                └── org_admin/         # Admin shell, dashboard, complaints, workspace,
-                                       # announcements, notifications, profile
+            └── services/              # API networking and FCM push notification services
 ```
 
 ---
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
-
-Ensure you have the following installed on your development machine:
-- **Git**: For version control.
-- **Python**: Version 3.10 or higher.
-- **Flutter SDK**: Version 3.19 or higher (compatible with Dart 3.11+).
-- **MySQL Server**: Version 8.0 or higher.
-- **Firebase Project**: A configured Firebase project with Email/Password authentication enabled.
+* **Python 3.10+** (3.11 recommended)
+* **Flutter SDK 3.19+** (compatible with Dart 3.11+)
+* **MySQL 8.0+**
+* **Git**
+* **Firebase Project** with Email/Password authentication enabled
 
 ---
 
-### 1. Database Setup
+## Local Development Setup
 
-1. Log into your MySQL console:
+### 1. Database Initialization (MySQL)
+
+1. Log into your local MySQL CLI:
    ```bash
    mysql -u root -p
    ```
-
-2. Create the `campushive` database:
+2. Create the database:
    ```sql
-   CREATE DATABASE campushive CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE campushive_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+3. Import the base table scripts from `campushive_db_v1.sql/`:
+   ```bash
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_organizations.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_departments.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_users.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_complaints.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_complaint_images.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_complaint_supports.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_complaint_chat.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_complaint_status_history.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_announcements.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_notifications.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_lost_found.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_lost_found_images.sql
+   mysql -u root -p campushive_db < campushive_db_v1.sql/campushive_db_lost_found_chat.sql
+   ```
+4. Apply the chronological migrations:
+   ```bash
+   mysql -u root -p campushive_db < backend/migrations/20260920_add_ml_retraining_tables.sql
+   mysql -u root -p campushive_db < backend/migrations/20261019_add_announcement_attachments.sql
+   mysql -u root -p campushive_db < backend/migrations/20261021_add_email_verifications.sql
    ```
 
-3. Import the database schema tables from `campushive_db_v1.sql/` in relational order:
-   ```bash
-   # Run the individual SQL scripts or initialize schema tables
-   mysql -u root -p campushive < campushive_db_v1.sql/campushive_db_organizations.sql
-   mysql -u root -p campushive < campushive_db_v1.sql/campushive_db_departments.sql
-   mysql -u root -p campushive < campushive_db_v1.sql/campushive_db_users.sql
-   mysql -u root -p campushive < campushive_db_v1.sql/campushive_db_complaints.sql
-   # Continue with remaining tables (images, supports, announcements, notifications, lost_found)
-   ```
-   *(For full schema definitions, consult [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)).*
+*(See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for table definitions).*
 
 ---
 
-### 2. Backend Setup
+### 2. Backend Setup (Flask)
 
-1. Open a terminal and navigate to the `backend/` directory:
+1. Navigate to `backend/` and create a Python virtual environment:
    ```bash
    cd backend
-   ```
-
-2. Create and activate a Python virtual environment:
-   ```bash
-   # Windows (PowerShell)
    python -m venv venv
-   .\venv\Scripts\Activate.ps1
 
-   # Linux / macOS
-   python3 -m venv venv
+   # Activate environment:
+   # Windows:
+   .\venv\Scripts\Activate.ps1
+   # Linux / macOS:
    source venv/bin/activate
    ```
-
-3. Install required Python packages:
+2. Install Python dependencies:
    ```bash
    pip install --upgrade pip
    pip install -r requirements.txt
    ```
-
-4. Create your local environment configuration from the template:
+3. Create your `.env` configuration file:
    ```bash
    cp .env.example .env
    ```
-
-5. Configure your `.env` file with your local MySQL credentials and secret keys:
-   ```ini
-   FLASK_ENV=development
-   FLASK_APP=app.py
-   SECRET_KEY=your_development_secret_key
-   DATABASE_URL=mysql+pymysql://root:your_mysql_password@localhost:3306/campushive
-   FIREBASE_CREDENTIALS_PATH=./config/firebase-key.json
-   ITEMS_PER_PAGE=20
+4. Place your Firebase Admin SDK service account key at `backend/config/firebase-key.json`.
+5. Verify SMTP credentials safely using the CLI diagnostic command:
+   ```bash
+   flask test-smtp
    ```
-
-6. Place your Firebase Admin SDK service account key at `backend/config/firebase-key.json`.
-
-7. Start the Flask development server:
+6. Start the development server:
    ```bash
    python app.py
    ```
-   *The API will start listening at `http://0.0.0.0:5000`.*
+   *Backend starts listening at `http://0.0.0.0:5000`.*
 
 ---
 
-### 3. Frontend Setup
+### 3. Mobile Client Setup (Flutter)
 
-1. Open a new terminal and navigate to the active Flutter project:
+1. Navigate to the mobile app directory:
    ```bash
    cd frontend/campushive_app
    ```
-
-2. Fetch Flutter packages:
+2. Install dependencies:
    ```bash
    flutter pub get
    ```
-
-3. Configure the backend API host in `lib/core/constants/app_constants.dart`:
-   ```dart
-   abstract final class AppConstants {
-     // Use http://10.0.2.2:5000/api/v1 for Android Emulator
-     // Use http://localhost:5000/api/v1 for iOS Simulator / Web / Desktop
-     // Use http://<YOUR_LAN_IP>:5000/api/v1 for Physical Devices
-     static const String apiBaseUrl = 'http://10.0.2.2:5000/api/v1';
-   }
-   ```
-
-4. Run the Flutter application on your target device or emulator:
+3. Ensure `frontend/campushive_app/android/app/google-services.json` is present.
+4. Run the mobile application (uses local developer network URL by default):
    ```bash
    flutter run
    ```
+   Or specify a target environment at runtime via `--dart-define`:
+   * **Android Emulator**: `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000/api/v1`
+   * **Custom LAN Device**: `flutter run --dart-define=API_BASE_URL=http://<YOUR_LOCAL_IP>:5000/api/v1`
+   * **Production Release Build**: `flutter build apk --release --dart-define=API_BASE_URL=https://<YOUR_DOMAIN>/api/v1`
+
+*(See [frontend/campushive_app/README.md](frontend/campushive_app/README.md) for details).*
 
 ---
 
-### 4. Device & Network Configuration
+## Email OTP Verification & SMTP Diagnostics
 
-- **Android Emulator**: Uses `10.0.2.2` as an alias to the host machine's loopback interface (`127.0.0.1`).
-- **Physical Devices**: Both the mobile device and development workstation must be on the same Wi-Fi network. Point `apiBaseUrl` to your workstation's local IP address (e.g., `http://192.168.1.50:5000/api/v1`) and ensure port `5000` is open on your firewall.
+During student registration, CampusHive enforces six-digit email OTP verification before creating the Firebase identity.
 
-For additional platform-specific details and commands, refer to the [PROJECT_SETUP_GUIDE.md](PROJECT_SETUP_GUIDE.md).
-
----
-
-## Environment Configuration & Security
-
-CampusHive strictly follows secure credential handling best practices:
-
-- **Zero Secrets in Version Control**: Actual environment files (`.env`), private keys, passwords, and service account credentials (`firebase-key.json`) are ignored via `.gitignore` and must never be committed to git.
-- **Template-Based Configuration**: Use `backend/.env.example` as the source of truth for required configuration variables.
-- **Firebase Token Verification**: Passwords are handled exclusively by Firebase Authentication. Client requests pass cryptographically signed Firebase ID tokens via the `Authorization: Bearer <ID_TOKEN>` header, which the Flask backend verifies using the `firebase-admin` SDK before admitting access.
-- **Data Isolation**: All database queries enforce tenant isolation via `organization_id` extracted from the authenticated user's session record.
+* **Security Controls**:
+  * 6-digit OTP hashed using SHA-256 before database insertion (`email_verifications`).
+  * 10-minute expiration window and 60-second resend cooldown.
+  * Maximum 3 verification attempts per OTP.
+  * Successful verification produces a single-use SHA-256 verification token required by `POST /auth/register`.
+* **Testing Tool**:
+  Run `flask test-smtp` from the `backend/` directory to test SMTP handshake, STARTTLS, and authentication without triggering an email send.
 
 ---
 
-## Current Implementation Status
+## Push Notifications & Firebase Setup
 
-| Feature / Module | Status | Notes |
-|---|---|---|
-| **Student Module** | Complete | Complaint creation, photo upload, upvoting, lost & found, feed, profile, notifications. |
-| **Supervisor Module** | Complete | Queue management, task details, status transitions, remarks, deadlines, profile. |
-| **Organization Admin Module** | Complete | Live KPI dashboard, complaint queue & workspace, announcement management, notifications, profile. |
-| **Authentication & RBAC** | Complete | Firebase sign-in, token validation, secure session storage, and role enforcement. |
-| **Complaint REST APIs** | Complete | Full CRUD, upvoting, supervisor assignment, comments, deadlines, status history. |
-| **Announcements System** | Complete | Full CRUD, importance flags, media URL attachments, like counters, feed synchronization. |
-| **Notification Center** | Complete | Unread badge, paginated feeds, filter by unread, single/bulk mark-as-read, delete. |
-| **Priority Calculation** | Complete | Hybrid system combining Scikit-Learn TF-IDF model with logarithmic support curves and keyword fallback. |
-| **Super Admin Web Console** | Planned | Global multi-organization management and institution onboarding portal. |
-| **Push Notifications (FCM)** | In Development | Backend services structured; background client FCM handlers planned. |
-| **Automated ML Retraining** | Planned | Continuous learning pipeline based on verified supervisor resolution history. |
+* **Client Device Registration**: Flutter obtains the FCM registration token on startup and sends it to the backend via `POST /api/v1/auth/update-fcm-token`.
+* **Push Delivery**: When a complaint status changes or circular is published, `FcmService` sends data and notification payloads via the Firebase Admin SDK.
+* **Deep Linking**: Tapping an FCM notification opens the specific complaint or circular via GoRouter navigation.
 
 ---
 
-## Future Enhancements
+## API Reference
 
-1. **Automated ML Retraining Pipeline**: Scheduled background workers to periodically retrain the priority prediction model using historical complaint resolution times and supervisor adjustments.
-2. **Deep NLP Categorization & Sentiment Analysis**: Natural language understanding to automatically suggest appropriate academic or facility departments from unstructured complaint text.
-3. **Background Push Notifications**: Native Firebase Cloud Messaging background receivers for instant ticket assignment alerts and emergency campus broadcasts.
-4. **Real-Time In-App Chat**: Interactive communication channels between students and assigned supervisors for active complaint clarification.
-5. **Interactive Campus GIS Mapping**: Interactive campus floor plans and maps for precision issue location tagging.
-6. **Web Administration Portal**: Responsive desktop web dashboard for campus facility managers and executive leadership.
+The backend registers 6 core blueprints prefixed under `/api/v1`:
+
+### 1. Authentication & Users (`/api/v1/auth`)
+* `POST /otp/send-registration-otp` — Generate and email a 6-digit OTP.
+* `POST /otp/verify-registration-otp` — Verify OTP and receive registration token.
+* `POST /register` — Complete registration with verification token & Firebase ID token.
+* `POST /login` — Synchronize profile and update login timestamp.
+* `GET /me` — Retrieve authenticated user profile.
+* `PATCH /me` / `PATCH /profile` — Update phone or profile details.
+* `POST /update-fcm-token` — Update device FCM push token.
+* `POST /profile-image` — Upload avatar image.
+* `POST /supervisors` — Create supervisor profile (Admin only).
+
+### 2. Complaints (`/api/v1/complaints`)
+* `GET /` — List complaints (filterable by status, department, category).
+* `POST /` — File a new complaint with location, category, and optional images.
+* `GET /<id>` — Fetch detailed complaint metadata.
+* `PATCH /<id>` — Update complaint status, assign supervisor, or add remarks.
+* `POST /<id>/support` — Toggle student peer upvote.
+* `GET /<id>/history` — Audit trail of status transitions.
+* `GET /<id>/comments` / `POST /<id>/comments` — Discussion messages.
+* `POST /<id>/feedback` — Submit student resolution rating & feedback.
+* `POST /<id>/reopen` — Reopen an unsatisfied resolved complaint.
+* `GET /departments` — List complaint resolution departments.
+* `GET /supervisors` — List supervisors.
+* `POST /upload-image` — Upload complaint photo attachment.
+
+### 3. Organizations (`/api/v1/organizations`)
+* `GET /public` — List active institutions for student registration.
+* `GET /<id>/academic-departments` — List academic programs for registration.
+* `GET /stats` / `GET /<id>/stats` — Organization KPI analytics dashboard.
+
+### 4. Lost & Found (`/api/v1/lost-found`)
+* `GET /` — Browse lost and found items.
+* `POST /` — Report a lost or found article.
+* `GET /<id>` — View item details.
+* `PATCH /<id>` — Update listing status (e.g., mark as `RESOLVED`).
+* `DELETE /<id>` — Delete listing.
+* `GET /<id>/comments` / `POST /<id>/comments` — Discussion on item claims.
+* `POST /upload-image` — Upload item photo.
+
+### 5. Campus Announcements (`/api/v1/announcements`)
+* `GET /` — List campus announcements with importance badges.
+* `POST /` — Publish a new announcement (Admin only).
+* `GET /<id>` — View announcement details.
+* `PATCH /<id>` / `DELETE /<id>` — Edit or remove announcement.
+* `POST /<id>/like` — React to announcement.
+* `POST /upload-attachment` — Upload document circular or image.
+* `POST /<id>/attachments` — Attach file/link to announcement.
+
+### 6. Notifications (`/api/v1/notifications`)
+* `GET /` — List notifications for authenticated user.
+* `GET /unread-count` — Count unread notifications.
+* `PATCH /<id>/read` — Mark notification as read.
+* `PATCH /read-all` — Bulk mark all notifications as read.
+* `DELETE /<id>` — Remove notification.
 
 ---
 
-## Project Documentation
+## Environment Configuration
 
-For deeper architectural, database, and setup details, explore the dedicated documentation files:
+Configuration is managed via environment variables. For an exhaustive, safe variable reference, see **[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md)**.
 
-- **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** — Architectural design, module interaction flows, security architecture, and multi-tenant specifications.
-- **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** — Comprehensive MySQL table structures, foreign keys, indexes, triggers, and initialization commands.
-- **[PROJECT_SETUP_GUIDE.md](PROJECT_SETUP_GUIDE.md)** — Step-by-step developer setup, dependency management, and troubleshooting guide.
-- **[PHASE_1_COMPLETION.md](PHASE_1_COMPLETION.md)** — Phase 1 architectural completion review and deliverables verification.
+> [!CAUTION]
+> **Zero Secrets in Version Control**: `.env` and `firebase-key.json` are ignored by Git. Never commit real credentials.
 
 ---
 
-## Contribution & Guidelines
+## Deployment Overview
 
-CampusHive is developed as an academic major project.
+CampusHive is architected for deployment on AWS:
+* **Backend**: AWS EC2 (Ubuntu Linux) running Gunicorn behind an Nginx reverse proxy with Let's Encrypt SSL/TLS certificates.
+* **Database**: AWS RDS MySQL 8.0 isolated in a private security group with automated backups.
+* **Mobile Client**: Production release APK compiled with `--dart-define=API_BASE_URL=https://api.campushive.institution.edu/api/v1`.
 
-- Contributions should follow clean architecture principles, maintaining separation between presentation widgets, state providers, networking services, and domain models.
-- Code must be formatted using `dart format` for Flutter and `black` / `flake8` for Python.
-- All code modifications must pass static analysis (`flutter analyze` with 0 issues).
+For step-by-step production setup, systemd services, Nginx configurations, and release build instructions, consult **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)**.
+
+---
+
+## Testing & Quality Assurance
+
+* **Flutter Code Analysis**:
+  ```bash
+  cd frontend/campushive_app
+  flutter analyze
+  ```
+* **Flutter Unit & Widget Tests**:
+  ```bash
+  cd frontend/campushive_app
+  flutter test
+  ```
+* **Backend Pytest Suite**:
+  ```bash
+  cd backend
+  pytest
+  ```
+* **SMTP Diagnostics**:
+  ```bash
+  cd backend
+  flask test-smtp
+  ```
+
+---
+
+## Security Considerations
+
+1. **Firebase Authentication Guard**: All private API endpoints verify cryptographically signed Firebase ID tokens via the Firebase Admin SDK.
+2. **Tenant Isolation**: Queries enforce `organization_id` row-level scoping extracted from the authenticated user.
+3. **Registration Anti-Abuse**: Email OTPs enforce attempt rate-limiting, IP recording, 10-minute expiry windows, and single-use verification tokens.
+4. **Restricted Database Access**: Production RDS MySQL instances must reside in private subnets, accepting connections exclusively from the backend EC2 security group.
+
+---
+
+## Documentation Index
+
+| Document | Purpose |
+|---|---|
+| **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** | Production deployment on AWS EC2, RDS MySQL, Nginx, Let's Encrypt, and Flutter release. |
+| **[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md)** | Complete reference of backend environment variables, Flutter compile flags, and defaults. |
+| **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** | Verified 19-table MySQL database schema, columns, foreign keys, indexes, and migrations. |
+| **[PROJECT_SETUP_GUIDE.md](PROJECT_SETUP_GUIDE.md)** | Developer onboarding, local MySQL setup, backend installation, and Flutter setup. |
+| **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** | Detailed system, security, multi-tenancy, and machine learning architecture specifications. |
+| **[frontend/campushive_app/README.md](frontend/campushive_app/README.md)** | Flutter client architecture, navigation shells, Provider state management, and build steps. |
+| **[PHASE_1_COMPLETION.md](PHASE_1_COMPLETION.md)** | *Archived* Phase 1 architectural completion review. |
+| **[frontend/campushive_app/UI_REFERENCE.md](frontend/campushive_app/UI_REFERENCE.md)** | *Archived* prototype UI inventory for reference. |
