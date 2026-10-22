@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -11,10 +10,12 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../models/academic_department.dart';
+import '../../models/email_verification.dart';
 import '../../models/organization.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 import 'auth_shell.dart';
+import 'otp_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -153,30 +154,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final session = await context.read<AuthProvider>().register(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        fullName: _nameController.text.trim(),
-        identifier: _identifierController.text.trim(),
-        phone: _phoneController.text.trim(),
-        organizationId: _selectedOrganization!.organizationId,
-        academicDepartmentId: _selectedDepartment!.academicDepartmentId,
+      final email = _emailController.text.trim();
+      final identifier = _identifierController.text.trim();
+      final orgId = _selectedOrganization!.organizationId;
+      final deptId = _selectedDepartment!.academicDepartmentId;
+
+      final sendResult = await context.read<AuthProvider>().sendRegistrationOtp(
+        email: email,
+        organizationId: orgId,
+        academicDepartmentId: deptId,
+        identifier: identifier,
       );
 
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      if (session.role.toUpperCase() == 'STUDENT') {
-        context.go(AppRoutes.studentDashboard);
-      } else {
-        context.go(AppRoutes.login);
-      }
-    } on FirebaseAuthException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _errorMessage = _firebaseErrorMessage(error.code);
-      });
+      final registrationData = RegistrationData(
+        email: email,
+        password: _passwordController.text,
+        fullName: _nameController.text.trim(),
+        identifier: identifier,
+        phone: _phoneController.text.trim(),
+        organizationId: orgId,
+        academicDepartmentId: deptId,
+        initialCooldownSeconds: sendResult.resendCooldownSeconds,
+      );
+
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => OtpVerificationScreen(
+            registrationData: registrationData,
+          ),
+        ),
+      );
     } on AuthException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -188,7 +198,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _isLoading = false;
         _errorMessage =
-            'Unable to complete registration. Please check your connection.';
+            'Unable to send verification code. Please check your connection.';
       });
     }
   }
@@ -429,23 +439,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _required(String? value, String label) {
     return value == null || value.trim().isEmpty ? '$label is required' : null;
-  }
-
-  String _firebaseErrorMessage(String code) {
-    switch (code) {
-      case 'email-already-in-use':
-        return 'An account already exists for this email address.';
-      case 'invalid-email':
-        return 'The email address is invalid.';
-      case 'weak-password':
-        return 'Password is too weak. Please use at least 8 characters.';
-      case 'operation-not-allowed':
-        return 'Student registration is temporarily unavailable.';
-      case 'network-request-failed':
-        return 'Unable to connect. Please check your network connection.';
-      default:
-        return 'Registration failed ($code). Please try again.';
-    }
   }
 }
 

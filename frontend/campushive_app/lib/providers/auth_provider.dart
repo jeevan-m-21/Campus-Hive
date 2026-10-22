@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/academic_department.dart';
+import '../models/email_verification.dart';
 import '../models/organization.dart';
 import '../services/auth_service.dart';
 import '../services/fcm_service.dart';
@@ -41,7 +42,7 @@ class AuthProvider extends ChangeNotifier {
       _session = session;
       _isInitialized = true;
       if (session != null) {
-        _syncFcmToken();
+        _syncFcmToken(requestPermission: false);
       }
       return session;
     } on AuthNetworkException catch (e) {
@@ -65,6 +66,28 @@ class AuthProvider extends ChangeNotifier {
   Future<List<AcademicDepartment>> getAcademicDepartments(int organizationId) =>
       _authService.getAcademicDepartments(organizationId);
 
+  Future<OtpSendResult> sendRegistrationOtp({
+    required String email,
+    required int organizationId,
+    required int academicDepartmentId,
+    required String identifier,
+  }) =>
+      _authService.sendRegistrationOtp(
+        email: email,
+        organizationId: organizationId,
+        academicDepartmentId: academicDepartmentId,
+        identifier: identifier,
+      );
+
+  Future<OtpVerificationResult> verifyRegistrationOtp({
+    required String email,
+    required String otp,
+  }) =>
+      _authService.verifyRegistrationOtp(
+        email: email,
+        otp: otp,
+      );
+
   Future<AuthSession> register({
     required String email,
     required String password,
@@ -73,6 +96,7 @@ class AuthProvider extends ChangeNotifier {
     required String phone,
     required int organizationId,
     required int academicDepartmentId,
+    String? verificationToken,
   }) async {
     _isLoading = true;
     _restoreError = null;
@@ -86,10 +110,12 @@ class AuthProvider extends ChangeNotifier {
         phone: phone,
         organizationId: organizationId,
         academicDepartmentId: academicDepartmentId,
+        verificationToken: verificationToken,
+        fcmToken: FcmService.instance.registeredToken,
       );
       _session = session;
       _isInitialized = true;
-      _syncFcmToken();
+      _syncFcmToken(requestPermission: true);
       return session;
     } finally {
       _isLoading = false;
@@ -110,10 +136,11 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         identifier: identifier,
+        fcmToken: FcmService.instance.registeredToken,
       );
       _session = session;
       _isInitialized = true;
-      _syncFcmToken();
+      _syncFcmToken(requestPermission: true);
       return session;
     } finally {
       _isLoading = false;
@@ -172,9 +199,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void _syncFcmToken() {
+  Future<bool> syncFcmToken({bool requestPermission = false}) async {
     try {
-      FcmService.instance.onUserAuthenticated();
-    } catch (_) {}
+      return await FcmService.instance.onUserAuthenticated(
+        requestPermission: requestPermission,
+      );
+    } catch (e) {
+      debugPrint('[AuthProvider] syncFcmToken error: $e');
+      return false;
+    }
+  }
+
+  void _syncFcmToken({bool requestPermission = true}) {
+    syncFcmToken(requestPermission: requestPermission);
   }
 }

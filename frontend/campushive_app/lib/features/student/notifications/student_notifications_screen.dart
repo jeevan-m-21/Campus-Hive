@@ -8,6 +8,7 @@ import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/notification_permission_banner.dart';
 import '../../../models/notification.dart';
 import '../../../providers/notification_provider.dart';
 
@@ -52,9 +53,23 @@ class _StudentNotificationsScreenState
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => provider.load(refresh: true),
-          child: _buildBody(context, provider),
+        child: Column(
+          children: [
+            const NotificationPermissionBanner(
+              margin: EdgeInsets.fromLTRB(
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingSmall,
+                AppDimensions.screenHorizontalPadding,
+                AppDimensions.spacingSmall,
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => provider.load(refresh: true),
+                child: _buildBody(context, provider),
+              ),
+            ),
+          ],
         ),
       ),
     );

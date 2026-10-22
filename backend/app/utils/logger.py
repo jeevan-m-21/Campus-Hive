@@ -27,8 +27,16 @@ def setup_logger(app):
     max_bytes = app.config.get('LOG_MAX_BYTES', 10485760)
     backup_count = app.config.get('LOG_BACKUP_COUNT', 10)
     
+    class SafeRotatingFileHandler(logging.handlers.RotatingFileHandler):
+        def doRollover(self):
+            try:
+                super().doRollover()
+            except (PermissionError, OSError):
+                # On Windows, file locks from active processes prevent rename during rollover
+                pass
+
     # Set up file handler with rotation
-    file_handler = logging.handlers.RotatingFileHandler(
+    file_handler = SafeRotatingFileHandler(
         log_file,
         maxBytes=max_bytes,
         backupCount=backup_count
