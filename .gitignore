@@ -103,3 +103,11 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local automated tests
+/backend/tests/
+/frontend/campushive_app/test/
+
+# Temporary debugging utilities
+/backend/app/utils/create_test_complaint.py
+/backend/app/utils/send_test_push.py
