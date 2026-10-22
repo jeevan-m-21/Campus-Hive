@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -133,7 +134,7 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
           }).toList();
 
     return Scaffold(
-      appBar: const AdminAppBar(title: 'Announcements'),
+      appBar: const AdminAppBar(),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
         backgroundColor: AppColors.primary,
@@ -150,7 +151,17 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
           color: AppColors.primary,
           onRefresh: () => provider.load(refresh: true),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppDimensions.screenHorizontalPadding,
+                  AppDimensions.spacingMedium,
+                  AppDimensions.screenHorizontalPadding,
+                  AppDimensions.spacingSmall,
+                ),
+                child: Text('Announcements', style: AppTextStyles.headingLarge),
+              ),
               Container(
                 color: AppColors.surface,
                 padding: const EdgeInsets.fromLTRB(

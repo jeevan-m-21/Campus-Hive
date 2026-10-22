@@ -30,6 +30,8 @@ class StudentProfileScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),
           children: [
+            const Text('Profile', style: AppTextStyles.headingLarge),
+            const SizedBox(height: AppDimensions.spacingMedium),
             _ProfileHeader(user: user),
             const SizedBox(height: AppDimensions.spacingLarge),
             const _ProfileDetails(),

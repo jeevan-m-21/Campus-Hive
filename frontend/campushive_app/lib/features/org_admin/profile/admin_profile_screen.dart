@@ -26,11 +26,13 @@ class AdminProfileScreen extends StatelessWidget {
     final user = session?.user ?? const <String, dynamic>{};
 
     return Scaffold(
-      appBar: const AdminAppBar(title: 'Admin Profile'),
+      appBar: const AdminAppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppDimensions.screenHorizontalPadding),
           children: [
+            const Text('Admin Profile', style: AppTextStyles.headingLarge),
+            const SizedBox(height: AppDimensions.spacingMedium),
             _ProfileHeader(user: user),
             const SizedBox(height: AppDimensions.spacingLarge),
             _ProfileDetails(user: user),

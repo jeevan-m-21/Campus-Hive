@@ -10,7 +10,6 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/logout_confirmation_dialog.dart';
 import '../../../models/feed_item.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/home_feed_provider.dart';
@@ -40,15 +39,7 @@ class _StudentDashboardView extends StatelessWidget {
     final imageUrl = _displayValue(user['profile_image']);
 
     return Scaffold(
-      appBar: StudentAppBar(
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            onPressed: () => LogoutConfirmationDialog.show(context),
-            icon: const Icon(Icons.logout_outlined),
-          ),
-        ],
-      ),
+      appBar: const StudentAppBar(),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>
@@ -59,6 +50,8 @@ class _StudentDashboardView extends StatelessWidget {
               AppDimensions.screenHorizontalPadding,
             ),
             children: [
+              const Text('Dashboard', style: AppTextStyles.headingLarge),
+              const SizedBox(height: AppDimensions.spacingMedium),
               _GreetingCard(
                 name: name,
                 identifier: identifier,

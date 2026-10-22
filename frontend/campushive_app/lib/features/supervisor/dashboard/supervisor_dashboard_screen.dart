@@ -58,6 +58,8 @@ class _SupervisorDashboardView extends StatelessWidget {
               AppDimensions.screenHorizontalPadding,
             ),
             children: [
+              const Text('Dashboard', style: AppTextStyles.headingLarge),
+              const SizedBox(height: AppDimensions.spacingMedium),
               _SupervisorGreetingCard(
                 name: name,
                 employeeId: employeeId,

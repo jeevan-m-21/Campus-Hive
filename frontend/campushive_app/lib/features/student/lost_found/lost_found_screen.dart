@@ -17,7 +17,9 @@ import '../../../providers/lost_found_provider.dart';
 import '../widgets/student_app_bar.dart';
 
 class LostFoundScreen extends StatefulWidget {
-  const LostFoundScreen({super.key});
+  const LostFoundScreen({this.provider, super.key});
+
+  final LostFoundProvider? provider;
 
   @override
   State<LostFoundScreen> createState() => _LostFoundScreenState();
@@ -34,6 +36,12 @@ class _LostFoundScreenState extends State<LostFoundScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.provider != null) {
+      return ChangeNotifierProvider.value(
+        value: widget.provider!,
+        child: const _LostFoundView(),
+      );
+    }
     return ChangeNotifierProvider(
       create: (_) => LostFoundProvider()..load(),
       child: const _LostFoundView(),

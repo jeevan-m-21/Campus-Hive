@@ -63,6 +63,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               AppDimensions.screenHorizontalPadding,
             ),
             children: [
+              const Text('Dashboard', style: AppTextStyles.headingLarge),
+              const SizedBox(height: AppDimensions.spacingMedium),
               _AdminGreetingCard(
                 name: name,
                 employeeId: employeeId,
