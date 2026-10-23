@@ -1,5 +1,5 @@
 abstract final class AppConstants {
-  static const String _defaultApiBaseUrl = 'http://192.168.31.90:5000/api/v1';
+  static const String _defaultApiBaseUrl = 'https://13.207.228.106/api/v1';
 
   /// Base URL for CampusHive backend API endpoints.
   ///

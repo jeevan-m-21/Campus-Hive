@@ -19,7 +19,7 @@ class ApiClient {
   static Uri buildUri(String path, [Map<String, String>? queryParameters]) {
     final rawBase = AppConstants.apiBaseUrl.trim();
     var sanitizedBase = rawBase.isEmpty
-        ? 'http://192.168.31.90:5000/api/v1'
+        ? 'https://13.207.228.106/api/v1'
         : rawBase;
 
     // Remove any trailing slashes from the base URL

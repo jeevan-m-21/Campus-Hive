@@ -96,11 +96,11 @@ The API base URL is defined in `lib/core/constants/app_constants.dart` using Flu
 
 ```dart
 abstract final class AppConstants {
-  static const String _defaultApiBaseUrl = 'http://192.168.31.90:5000/api/v1';
+  static const String _defaultApi = 'http://192.168.31.90:5000/api/v1';
 
-  static const String apiBaseUrl = String.fromEnvironment(
+  static const String api = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: _defaultApiBaseUrl,
+    defaultValue: _defaultApi,
   );
 }
 ```
