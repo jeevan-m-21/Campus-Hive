@@ -5,10 +5,13 @@ import uuid
 from flask import Blueprint, current_app, g, request
 from werkzeug.utils import secure_filename
 
+from sqlalchemy import or_
+
 from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import Announcement, AnnouncementAttachment, AnnouncementLike, User
 from app.services.notification_service import NotificationService, NotificationServiceError
+from app.services.s3_service import S3Service
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
 
@@ -106,21 +109,63 @@ def _validate_attachment_dict(item):
 
 
 def _safe_remove_upload_file(attachment_url):
-    """Safely delete an uploaded file from disk if no other record references it."""
-    if not attachment_url or not attachment_url.startswith('/uploads/announcements/'):
-        return
+    """
+    Safely delete an uploaded file from S3 / disk if no other record references it.
+    Returns True if deletion succeeded or was a safe no-op (e.g. shared or external), False on S3 failure.
+    """
+    if not attachment_url or not isinstance(attachment_url, str):
+        return True
 
-    other_att = AnnouncementAttachment.query.filter_by(attachment_url=attachment_url).first()
-    other_ann = Announcement.query.filter_by(attachment_url=attachment_url).first()
-    if other_att is None and other_ann is None:
-        filename = attachment_url.split('/uploads/announcements/')[-1]
-        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'announcements')
-        filepath = os.path.join(upload_dir, filename)
-        try:
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        except Exception:
-            current_app.logger.warning(f"Could not remove announcement file: {filepath}")
+    url_trimmed = attachment_url.strip()
+    if not (url_trimmed.startswith('/uploads/announcements/') or url_trimmed.startswith('uploads/announcements/')):
+        # External or other module -> preserved safely
+        return True
+
+    canonical_url = f"/{url_trimmed.lstrip('/')}"
+    alt_url = url_trimmed.lstrip('/')
+
+    other_att = AnnouncementAttachment.query.filter(
+        or_(
+            AnnouncementAttachment.attachment_url == canonical_url,
+            AnnouncementAttachment.attachment_url == alt_url,
+        )
+    ).first()
+    other_ann = Announcement.query.filter(
+        or_(
+            Announcement.attachment_url == canonical_url,
+            Announcement.attachment_url == alt_url,
+        )
+    ).first()
+
+    if other_att is not None or other_ann is not None:
+        return True
+
+    filename = canonical_url[len('/uploads/announcements/'):]
+    if not filename or '/' in filename or '\\' in filename or '..' in filename:
+        current_app.logger.warning(f"Refusing to delete unsafe filename: {filename}")
+        return True
+
+    if S3Service.is_enabled():
+        success = S3Service.delete_file(canonical_url)
+        if not success:
+            current_app.logger.error(f"S3 deletion failed for {canonical_url}")
+            return False
+
+    upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'announcements')
+    filepath = os.path.abspath(os.path.join(upload_dir, filename))
+    upload_dir_abs = os.path.abspath(upload_dir)
+
+    if os.path.commonpath([filepath, upload_dir_abs]) != upload_dir_abs:
+        current_app.logger.warning(f"Path traversal detected during announcement file removal: {filepath}")
+        return True
+
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except Exception:
+        current_app.logger.warning(f"Could not remove announcement file: {filepath}")
+
+    return True
 
 
 def _serialize_announcement_dict(announcement_data, current_user_id=None):
@@ -444,24 +489,30 @@ def upload_announcement_attachment():
 
     mime_type = file.mimetype or 'application/octet-stream'
 
-    upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'announcements')
-    os.makedirs(upload_dir, exist_ok=True)
-
     filename = f"{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(upload_dir, filename)
-
-    try:
-        file.save(filepath)
-    except Exception:
-        current_app.logger.exception('Failed to save announcement upload')
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except Exception:
-                pass
-        return error_response('server_error', 'Failed to save attachment file', 500)
-
     attachment_url = f"/uploads/announcements/{filename}"
+
+    if S3Service.is_enabled():
+        try:
+            S3Service.upload_file(file.stream, f"announcements/{filename}", content_type=mime_type)
+        except Exception:
+            current_app.logger.exception('Failed to upload announcement attachment to S3')
+            return error_response('server_error', 'Failed to save attachment file', 500)
+    else:
+        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'announcements')
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, filename)
+
+        try:
+            file.save(filepath)
+        except Exception:
+            current_app.logger.exception('Failed to save announcement upload')
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+            return error_response('server_error', 'Failed to save attachment file', 500)
 
     return success_response(
         {
@@ -595,15 +646,29 @@ def delete_announcement(announcement_id):
     if announcement.attachment_url and announcement.attachment_url.startswith('/uploads/announcements/'):
         files_to_check.append(announcement.attachment_url)
 
-    try:
-        db.session.delete(announcement)
-        db.session.commit()
-        for f_url in files_to_check:
-            _safe_remove_upload_file(f_url)
-    except Exception:
-        db.session.rollback()
-        current_app.logger.exception('Failed to delete announcement')
-        return error_response('database_error', 'Database failure while deleting announcement', 500)
+    if S3Service.is_enabled():
+        try:
+            db.session.delete(announcement)
+            db.session.flush()
+            for f_url in files_to_check:
+                if not _safe_remove_upload_file(f_url):
+                    db.session.rollback()
+                    return error_response('server_error', 'Failed to clean up announcement files', 500)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Failed to delete announcement')
+            return error_response('database_error', 'Database failure while deleting announcement', 500)
+    else:
+        try:
+            db.session.delete(announcement)
+            db.session.commit()
+            for f_url in files_to_check:
+                _safe_remove_upload_file(f_url)
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Failed to delete announcement')
+            return error_response('database_error', 'Database failure while deleting announcement', 500)
 
     return success_response({}, 'Announcement deleted successfully', 200)
 
@@ -679,8 +744,14 @@ def delete_announcement_attachment(announcement_id, attachment_id):
             announcement.attachment_type = 'NONE'
             announcement.attachment_url = None
 
+        if S3Service.is_enabled():
+            if not _safe_remove_upload_file(file_url):
+                db.session.rollback()
+                return error_response('server_error', 'Failed to clean up attachment file', 500)
+
         db.session.commit()
-        _safe_remove_upload_file(file_url)
+        if not S3Service.is_enabled():
+            _safe_remove_upload_file(file_url)
     except Exception:
         db.session.rollback()
         current_app.logger.exception('Failed to delete attachment')

@@ -122,10 +122,64 @@ def register_blueprints(app):
     app.register_blueprint(notif_bp, url_prefix=f'{api_prefix}/notifications')
     app.register_blueprint(announcement_bp, url_prefix=f'{api_prefix}/announcements')
 
-    from flask import send_from_directory
+    from flask import Response, redirect, send_from_directory
 
     @app.route('/uploads/<path:filename>')
     def serve_uploads(filename):
+        # Path traversal guard
+        if '..' in filename or filename.startswith(('/', '\\')):
+            return {'error': 'Bad Request', 'message': 'Invalid file path'}, 400
+
+        from app.services.s3_service import S3Service, S3ServiceError
+
+        if S3Service.is_enabled():
+            try:
+                if app.config.get('S3_PRESIGNED_REDIRECT', False):
+                    presigned_url = S3Service.generate_presigned_url(filename)
+                    return redirect(presigned_url, code=302)
+
+                s3_file = S3Service.get_file_stream(filename)
+                body = s3_file['body']
+
+                def generate_chunks():
+                    try:
+                        yield from body.iter_chunks()
+                    finally:
+                        body.close()
+
+                headers = {
+                    'Cache-Control': 'public, max-age=86400',
+                }
+                if s3_file.get('content_length') is not None:
+                    headers['Content-Length'] = str(s3_file['content_length'])
+                if s3_file.get('etag'):
+                    headers['ETag'] = s3_file['etag']
+
+                response = Response(
+                    generate_chunks(),
+                    mimetype=s3_file.get('content_type', 'application/octet-stream'),
+                    headers=headers,
+                )
+                response.call_on_close(body.close)
+                return response
+            except S3ServiceError as exc:
+                if exc.status_code == 404:
+                    # Genuine 404: check local filesystem for legacy file backward compatibility
+                    upload_folder = os.path.abspath(app.config.get('UPLOAD_FOLDER', './uploads'))
+                    local_path = os.path.join(upload_folder, filename)
+                    if os.path.exists(local_path) and os.path.isfile(local_path):
+                        return send_from_directory(upload_folder, filename)
+                    return {'error': 'Not Found', 'message': 'File not found'}, 404
+                if exc.status_code == 400:
+                    return {'error': 'Bad Request', 'message': 'Invalid file path'}, 400
+
+                # Server-side S3 error (IAM permission failure, connection error, etc.)
+                app.logger.error(f"S3 retrieval failure for {filename}: {exc.message}")
+                return {'error': 'Internal Server Error', 'message': 'Failed to retrieve file'}, 500
+            except Exception as exc:
+                app.logger.error(f"Unexpected error serving upload from S3 for {filename}: {type(exc).__name__}")
+                return {'error': 'Internal Server Error', 'message': 'Failed to retrieve file'}, 500
+
         upload_folder = os.path.abspath(app.config.get('UPLOAD_FOLDER', './uploads'))
         return send_from_directory(upload_folder, filename)
     

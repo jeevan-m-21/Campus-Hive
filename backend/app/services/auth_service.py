@@ -18,8 +18,11 @@ from flask import current_app
 from PIL import Image
 from werkzeug.utils import secure_filename
 
+from sqlalchemy import or_
+
 from app.database import db
 from app.models import User, Organization, Department, AcademicDepartment
+from app.services.s3_service import S3Service
 
 
 class AuthServiceError(Exception):
@@ -663,16 +666,25 @@ class AuthService:
             current_app.logger.warning(f"Unsafe filename in old profile image path: {filename}")
             return
 
+        canonical_url = f"/{trimmed.lstrip('/')}"
+        alt_url = trimmed.lstrip('/')
+
         # Check if another user references this image
         other = User.query.filter(
             User.user_id != current_user_id,
-            User.profile_image == trimmed,
+            or_(
+                User.profile_image == canonical_url,
+                User.profile_image == alt_url,
+            ),
         ).first()
         if other is not None:
             current_app.logger.info(
                 f"Skipping old profile image deletion; shared with user {other.user_id}"
             )
             return
+
+        if S3Service.is_enabled():
+            S3Service.delete_file(canonical_url)
 
         upload_folder = current_app.config.get('UPLOAD_FOLDER', './uploads')
         profile_dir = os.path.abspath(os.path.join(upload_folder, 'profile'))
@@ -750,36 +762,52 @@ class AuthService:
             )
 
         canonical_ext = allowed_formats[img_format]
-        upload_folder = os.path.abspath(current_app.config.get('UPLOAD_FOLDER', './uploads'))
-        profile_dir = os.path.abspath(os.path.join(upload_folder, 'profile'))
-        os.makedirs(profile_dir, exist_ok=True)
+        canonical_mime = f"image/{'jpeg' if canonical_ext == 'jpg' else canonical_ext}"
 
         new_filename = f"{uuid.uuid4().hex}.{canonical_ext}"
-        filepath = os.path.abspath(os.path.join(profile_dir, new_filename))
+        new_image_url = f"/uploads/profile/{new_filename}"
+        filepath = None
 
-        if os.path.commonpath([filepath, profile_dir]) != profile_dir:
-            raise ValidationError('Invalid filename or path.')
+        if S3Service.is_enabled():
+            s3_key = f"profile/{new_filename}"
+            try:
+                S3Service.upload_file(file.stream, s3_key, content_type=canonical_mime)
+            except Exception as exc:
+                current_app.logger.exception('Failed to save profile image to S3')
+                raise AuthServiceError('Failed to save image file.', status_code=500, error_code='server_error') from exc
+        else:
+            upload_folder = os.path.abspath(current_app.config.get('UPLOAD_FOLDER', './uploads'))
+            profile_dir = os.path.abspath(os.path.join(upload_folder, 'profile'))
+            os.makedirs(profile_dir, exist_ok=True)
+            filepath = os.path.abspath(os.path.join(profile_dir, new_filename))
 
-        try:
-            file.save(filepath)
-        except Exception as exc:
-            current_app.logger.exception('Failed to save profile image')
-            if os.path.exists(filepath):
-                try:
-                    os.remove(filepath)
-                except Exception:
-                    pass
-            raise AuthServiceError('Failed to save image file.', status_code=500, error_code='server_error') from exc
+            if os.path.commonpath([filepath, profile_dir]) != profile_dir:
+                raise ValidationError('Invalid filename or path.')
+
+            try:
+                file.save(filepath)
+            except Exception as exc:
+                current_app.logger.exception('Failed to save profile image')
+                if os.path.exists(filepath):
+                    try:
+                        os.remove(filepath)
+                    except Exception:
+                        pass
+                raise AuthServiceError('Failed to save image file.', status_code=500, error_code='server_error') from exc
 
         old_profile_image = current_user.profile_image
-        new_image_url = f"/uploads/profile/{new_filename}"
         current_user.profile_image = new_image_url
 
         try:
             db.session.commit()
         except Exception as exc:
             db.session.rollback()
-            if os.path.exists(filepath):
+            if S3Service.is_enabled():
+                try:
+                    S3Service.delete_file(new_image_url)
+                except Exception:
+                    pass
+            elif filepath and os.path.exists(filepath):
                 try:
                     os.remove(filepath)
                 except Exception:
