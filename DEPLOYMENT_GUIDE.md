@@ -19,8 +19,7 @@ This guide details the complete production deployment procedure for CampusHive, 
 │   ┌───────────────────────────────────────────────────────────────────────────────┐   │
 │   │ Nginx (Reverse Proxy & SSL Termination)                                       │   │
 │   │ - Handles HTTPS via Let's Encrypt / Certbot                                   │   │
-│   │ - Serves `/uploads/` directly from `/var/www/campushive/uploads/`              │   │
-│   │ - Proxies `/api/` to Gunicorn Unix Socket or 127.0.0.1:5000                   │   │
+│   │ - Proxies `/uploads/` and `/api/` to Gunicorn Unix Socket                     │   │
 │   └───────────────────────────────────────┬───────────────────────────────────────┘   │
 │                                           │ Unix Socket / HTTP                        │
 │                                           ▼                                           │
@@ -31,20 +30,20 @@ This guide details the complete production deployment procedure for CampusHive, 
 │   │ - Environment configuration in `/etc/campushive/campushive.env`               │   │
 │   └───────────────────────────────────┬───────────────────────────────────────────┘   │
 │                                       │                                               │
-│       ┌───────────────────────────────┼───────────────────────────────┐               │
-│       ▼                               ▼                               ▼               │
-│ ┌───────────────┐           ┌───────────────────┐           ┌───────────────────┐     │
-│ │ PyMySQL ORM   │           │ Firebase Admin    │           │ Outgoing SMTP     │     │
-│ │ Engine        │           │ (Auth & FCM)      │           │ (Registration OTP)│     │
-│ └───────┬───────┘           └─────────┬─────────┘           └─────────┬─────────┘     │
-└─────────┼─────────────────────────────┼───────────────────────────────┼───────────────┘
-          │ Private VPC (Port 3306)     │ HTTPS Outbound                │ Port 587 (TLS)
-          ▼                             ▼                               ▼
-┌───────────────────────┐   ┌───────────────────────┐       ┌───────────────────────┐
-│ AWS RDS (MySQL 8.0)   │   │ Firebase Services     │       │ SMTP Server           │
-│ Multi-AZ / Automated  │   │ (Auth, FCM Messaging, │       │ (AWS SES / Dedicated  │
-│ Daily Snapshots       │   │ Storage)              │       │  Gmail App Password)  │
-└───────────────────────┘   └───────────────────────┘       └───────────────────────┘
+│       ┌───────────────────────────────┼───────────────────────────────┬───────────────┤
+│       ▼                               ▼                               ▼               ▼
+│ ┌───────────────┐           ┌───────────────────┐           ┌───────────────────┐ ┌───────────────┐
+│ │ PyMySQL ORM   │           │ Firebase Admin    │           │ Outgoing SMTP     │ │ Boto3 S3      │
+│ │ Engine        │           │ (Auth & FCM)      │           │ (Registration OTP)│ │ (EC2 IAM Role)│
+│ └───────┬───────┘           └─────────┬─────────┘           └─────────┬─────────┘ └───────┬───────┘
+└─────────┼─────────────────────────────┼───────────────────────────────┼───────────────────┼─────────┘
+          │ Private VPC (Port 3306)     │ HTTPS Outbound                │ Port 587 (TLS)    │ S3 API
+          ▼                             ▼                               ▼                   ▼
+┌───────────────────────┐   ┌───────────────────────┐       ┌───────────────────┐   ┌───────────────────────┐
+│ AWS RDS (MySQL 8.0)   │   │ Firebase Services     │       │ SMTP Server       │   │ Amazon S3 Bucket      │
+│ Multi-AZ / Automated  │   │ (Auth, FCM Messaging) │       │ (AWS SES / Gmail) │   │ campushive-media-2026 │
+│ Daily Snapshots       │   │                       │       │                   │   │ (Private / IAM Role)  │
+└───────────────────────┘   └───────────────────────┘       └───────────────────┘   └───────────────────────┘
 ```
 
 ---
@@ -351,11 +350,14 @@ server {
 
     client_max_body_size 50M;
 
-    # Static file serving for uploaded images & documents
+    # Media retrieval (/uploads/) served securely from Amazon S3 via Flask
     location /uploads/ {
-        alias /var/www/campushive/uploads/;
-        expires 30d;
-        add_header Cache-Control "public, no-transform";
+        include proxy_params;
+        proxy_pass http://unix:/var/www/campushive/campushive.sock;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 120s;
     }
 
     # Proxy API requests to Gunicorn

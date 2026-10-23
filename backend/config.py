@@ -56,6 +56,15 @@ class Config:
         UPLOAD_FOLDER = str(BASE_DIR / 'uploads')
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'}
 
+    # AWS & Amazon S3 Configuration
+    AWS_REGION = os.getenv('AWS_REGION') or os.getenv('AWS_DEFAULT_REGION') or 'ap-south-1'
+    S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME', 'campushive-media-2026')
+    _s3_enabled_env = os.getenv('S3_STORAGE_ENABLED')
+    S3_STORAGE_ENABLED = _s3_enabled_env.strip().lower() in ('true', '1', 'yes') if _s3_enabled_env is not None else True
+    S3_KEY_PREFIX = os.getenv('S3_KEY_PREFIX', '').strip().strip('/')
+    S3_PRESIGNED_REDIRECT = os.getenv('S3_PRESIGNED_REDIRECT', 'false').strip().lower() in ('true', '1', 'yes')
+    S3_PRESIGNED_EXPIRES = int(os.getenv('S3_PRESIGNED_EXPIRES', '3600'))
+
     # Email Configuration
     MAIL_SERVER = os.getenv('MAIL_SERVER') or os.getenv('SMTP_SERVER') or 'smtp.gmail.com'
     MAIL_PORT = int(os.getenv('MAIL_PORT') or os.getenv('SMTP_PORT') or 587)
@@ -136,6 +145,7 @@ class TestingConfig(Config):
     SQLALCHEMY_ENGINE_OPTIONS = {}
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=5)
     MAIL_BACKEND = 'locmem'  # Use in-memory email backend for testing
+    S3_STORAGE_ENABLED = False  # Disabled by default in tests; enabled in S3-specific tests via mock
 
 
 class ProductionConfig(Config):

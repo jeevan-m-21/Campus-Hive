@@ -14,6 +14,7 @@ from app.database import db
 from app.middleware.firebase_auth import firebase_login_required, role_required
 from app.models import LostFound, LostFoundChat, LostFoundImage
 from app.services.notification_service import NotificationService, NotificationServiceError
+from app.services.s3_service import S3Service
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
 
@@ -91,30 +92,51 @@ def _is_safe_image_url(url):
 
 def _safe_remove_lost_found_file(image_url):
     """
-    Safely delete an uploaded Lost & Found image file from disk if no other record references it.
+    Safely delete an uploaded Lost & Found image file from S3 / disk if no other record references it.
+    Returns True if deletion succeeded or was a safe no-op (e.g. shared or external), False on S3 failure.
     Only touches files under /uploads/lost_found/. Never touches /uploads/complaints/ or external URLs.
     Validates filesystem path to prevent path traversal.
     """
     if not image_url or not isinstance(image_url, str):
-        return
+        return True
 
     url_trimmed = image_url.strip()
-    if not url_trimmed.startswith('/uploads/lost_found/'):
-        return
+    if not (url_trimmed.startswith('/uploads/lost_found/') or url_trimmed.startswith('uploads/lost_found/')):
+        # External or other module -> preserved safely
+        return True
+
+    canonical_url = f"/{url_trimmed.lstrip('/')}"
+    alt_url = url_trimmed.lstrip('/')
 
     # Check if any remaining LostFoundImage or LostFoundChat references this URL
-    other_image = LostFoundImage.query.filter_by(image_url=url_trimmed).first()
+    other_image = LostFoundImage.query.filter(
+        or_(
+            LostFoundImage.image_url == canonical_url,
+            LostFoundImage.image_url == alt_url,
+        )
+    ).first()
     if other_image is not None:
-        return
+        return True
 
-    other_chat = LostFoundChat.query.filter_by(image_url=url_trimmed).first()
+    other_chat = LostFoundChat.query.filter(
+        or_(
+            LostFoundChat.image_url == canonical_url,
+            LostFoundChat.image_url == alt_url,
+        )
+    ).first()
     if other_chat is not None:
-        return
+        return True
 
-    filename = url_trimmed[len('/uploads/lost_found/'):]
+    filename = canonical_url[len('/uploads/lost_found/'):]
     if not filename or '/' in filename or '\\' in filename or '..' in filename:
         current_app.logger.warning(f"Refusing to delete unsafe filename: {filename}")
-        return
+        return True
+
+    if S3Service.is_enabled():
+        success = S3Service.delete_file(canonical_url)
+        if not success:
+            current_app.logger.error(f"S3 deletion failed for {canonical_url}")
+            return False
 
     upload_folder = current_app.config.get('UPLOAD_FOLDER', './uploads')
     lf_dir = os.path.abspath(os.path.join(upload_folder, 'lost_found'))
@@ -123,13 +145,15 @@ def _safe_remove_lost_found_file(image_url):
     # Strict path traversal check
     if os.path.commonpath([filepath, lf_dir]) != lf_dir:
         current_app.logger.warning(f"Path traversal detected during file removal: {filepath}")
-        return
+        return True
 
     try:
         if os.path.exists(filepath) and os.path.isfile(filepath):
             os.remove(filepath)
     except Exception as exc:
         current_app.logger.warning(f"Could not remove lost and found file {filepath}: {exc}")
+
+    return True
 
 
 
@@ -517,24 +541,38 @@ def delete_lost_found(item_id):
     files_to_check = []
     if item.images:
         for img in item.images:
-            if img.image_url and img.image_url.startswith('/uploads/lost_found/'):
+            if img.image_url and (img.image_url.startswith('/uploads/lost_found/') or img.image_url.startswith('uploads/lost_found/')):
                 files_to_check.append(img.image_url)
 
     if item.chat_messages:
         for chat in item.chat_messages:
-            if chat.image_url and chat.image_url.startswith('/uploads/lost_found/'):
+            if chat.image_url and (chat.image_url.startswith('/uploads/lost_found/') or chat.image_url.startswith('uploads/lost_found/')):
                 files_to_check.append(chat.image_url)
 
-    db.session.delete(item)
+    if S3Service.is_enabled():
+        db.session.delete(item)
+        db.session.flush()
 
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+        for f_url in set(files_to_check):
+            if not _safe_remove_lost_found_file(f_url):
+                db.session.rollback()
+                return error_response('server_error', 'Failed to clean up associated files', 500)
 
-    for f_url in set(files_to_check):
-        _safe_remove_lost_found_file(f_url)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+    else:
+        db.session.delete(item)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        for f_url in set(files_to_check):
+            _safe_remove_lost_found_file(f_url)
 
     return success_response({}, 'Lost and found item deleted', 200)
 
@@ -706,16 +744,31 @@ def delete_lost_found_image(image_id):
         return error_response('forbidden', 'You cannot delete this image', 403)
 
     f_url = image.image_url
-    db.session.delete(image)
 
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+    if S3Service.is_enabled():
+        db.session.delete(image)
+        db.session.flush()
 
-    if f_url and f_url.startswith('/uploads/lost_found/'):
-        _safe_remove_lost_found_file(f_url)
+        if f_url and (f_url.startswith('/uploads/lost_found/') or f_url.startswith('uploads/lost_found/')):
+            if not _safe_remove_lost_found_file(f_url):
+                db.session.rollback()
+                return error_response('server_error', 'Failed to clean up image file', 500)
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+    else:
+        db.session.delete(image)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        if f_url and (f_url.startswith('/uploads/lost_found/') or f_url.startswith('uploads/lost_found/')):
+            _safe_remove_lost_found_file(f_url)
 
     return success_response({}, 'Image deleted', 200)
 
@@ -776,30 +829,36 @@ def upload_lost_found_image():
         )
 
     canonical_mime = _ALLOWED_LF_IMAGE_FORMATS[img_format]
-
-    upload_dir = os.path.abspath(
-        os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'lost_found')
-    )
-    os.makedirs(upload_dir, exist_ok=True)
-
     filename = f"{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.abspath(os.path.join(upload_dir, filename))
-
-    if os.path.commonpath([filepath, upload_dir]) != upload_dir:
-        return error_response('validation_error', 'Invalid filename or path', 400)
-
-    try:
-        file.save(filepath)
-    except Exception:
-        current_app.logger.exception('Failed to save lost and found image')
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except Exception:
-                pass
-        return error_response('server_error', 'Failed to save image file', 500)
-
     image_url = f"/uploads/lost_found/{filename}"
+
+    if S3Service.is_enabled():
+        try:
+            S3Service.upload_file(file.stream, f"lost_found/{filename}", content_type=canonical_mime)
+        except Exception:
+            current_app.logger.exception('Failed to upload lost and found image to S3')
+            return error_response('server_error', 'Failed to save image file', 500)
+    else:
+        upload_dir = os.path.abspath(
+            os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'lost_found')
+        )
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.abspath(os.path.join(upload_dir, filename))
+
+        if os.path.commonpath([filepath, upload_dir]) != upload_dir:
+            return error_response('validation_error', 'Invalid filename or path', 400)
+
+        try:
+            file.save(filepath)
+        except Exception:
+            current_app.logger.exception('Failed to save lost and found image')
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+            return error_response('server_error', 'Failed to save image file', 500)
+
     return success_response(
         {
             'image_url': image_url,

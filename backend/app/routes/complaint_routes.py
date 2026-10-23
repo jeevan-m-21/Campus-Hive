@@ -11,6 +11,7 @@ from app.services.assignment_service import AssignmentService
 from app.services.auth_service import AuthService, AuthServiceError
 from app.services.notification_service import NotificationService, NotificationServiceError
 from app.services.priority_service import PriorityService
+from app.services.s3_service import S3Service
 from app.utils.helpers import error_response, get_pagination_params, paginate_query, success_response
 
 
@@ -225,16 +226,46 @@ def upload_complaint_image():
     ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
     allowed = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
     if ext not in allowed:
-        return error_response('validation_error', f'File type not allowed. Allowed: {", ".join(allowed)}', 400)
+        return error_response('validation_error', f'File type not allowed. Allowed: {", ".join(sorted(allowed))}', 400)
 
-    upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'complaints')
-    os.makedirs(upload_dir, exist_ok=True)
+    # Check file size (10MB limit)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+
+    if file_size <= 0:
+        return error_response('validation_error', 'File cannot be empty', 400)
+    if file_size > 10 * 1024 * 1024:
+        return error_response('validation_error', 'File size exceeds 10MB limit', 400)
 
     filename = f"{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(upload_dir, filename)
-    file.save(filepath)
-
     image_url = f"/uploads/complaints/{filename}"
+
+    mime_map = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp',
+        'gif': 'image/gif',
+    }
+    content_type = mime_map.get(ext, getattr(file, 'mimetype', None) or 'application/octet-stream')
+
+    if S3Service.is_enabled():
+        try:
+            S3Service.upload_file(file.stream, f"complaints/{filename}", content_type=content_type)
+        except Exception:
+            current_app.logger.exception('Failed to upload complaint image to S3')
+            return error_response('server_error', 'Failed to save image file', 500)
+    else:
+        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', './uploads'), 'complaints')
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, filename)
+        try:
+            file.save(filepath)
+        except Exception:
+            current_app.logger.exception('Failed to save complaint image locally')
+            return error_response('server_error', 'Failed to save image file', 500)
+
     return success_response({'image_url': image_url}, 'Image uploaded successfully', 201)
 
 
