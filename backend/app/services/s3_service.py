@@ -219,9 +219,6 @@ class S3Service:
                 ExtraArgs=extra_args if extra_args else None,
             )
 
-            if hasattr(file_obj, 'seek'):
-                file_obj.seek(0)
-
             logger.info(f"Successfully uploaded to S3: s3://{bucket}/{s3_key}")
         except Exception as exc:
             logger.exception(f"Failed to upload {s3_key} to S3 bucket {bucket}: {exc}")
