@@ -1,5 +1,5 @@
 name: campushive_app
-description: "A new Flutter project."
+description: "Campus Hive - A campus management and community platform."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -24,9 +24,17 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/logos/campus_hive_logo.png
     - assets/logos/campus_hive_header_logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/logos/campus_hive_app_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logos/campus_hive_app_icon.png"

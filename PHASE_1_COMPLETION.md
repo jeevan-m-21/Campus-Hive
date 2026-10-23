@@ -1,8 +1,17 @@
-# CampusHive - Phase 1 Implementation Complete
+> [!NOTE]
+> **HISTORICAL ARCHIVE DOCUMENT**
+> This file is a historical milestone report documenting Phase 1 architectural completion as of July 2026.
+> It is preserved for academic review and project tracking. For the current, verified production documentation, refer to:
+> - Architecture: [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)
+> - Database Schema: [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
+> - Developer Setup: [PROJECT_SETUP_GUIDE.md](PROJECT_SETUP_GUIDE.md)
+> - Production Deployment: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
+# CampusHive - Phase 1 Implementation Complete (Historical Archive)
 
 ## 🎯 Project Overview
 
-**CampusHive** is a production-ready, multi-tenant SaaS platform for campus issue management and student interaction. This document summarizes Phase 1 completion (Foundation & Architecture).
+**CampusHive** is a multi-tenant SaaS platform for campus issue management and student interaction. This document summarizes Phase 1 completion (Foundation & Architecture).
 
 ---
 
@@ -457,10 +466,9 @@ flutter run
 - [backend/app/middleware/auth.py](backend/app/middleware/auth.py) - JWT middleware
 
 ### Frontend Key Files
-- [lib/core/constants/app_constants.dart](lib/core/constants/app_constants.dart) - Config
-- [lib/data/services/api_service.dart](lib/data/services/api_service.dart) - HTTP client
-- [lib/data/services/auth_service.dart](lib/data/services/auth_service.dart) - Auth logic
-- [lib/presentation/providers/auth_provider.dart](lib/presentation/providers/auth_provider.dart) - Auth state
+- [frontend/campushive_app/lib/core/constants/app_constants.dart](frontend/campushive_app/lib/core/constants/app_constants.dart) - Config
+- [frontend/campushive_app/lib/services/auth_service.dart](frontend/campushive_app/lib/services/auth_service.dart) - Auth networking
+- [frontend/campushive_app/lib/providers/auth_provider.dart](frontend/campushive_app/lib/providers/auth_provider.dart) - Auth state provider
 
 ---
 
